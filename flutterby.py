@@ -2,6 +2,21 @@ import pygtk
 import gtk
 import sys,string
 
+import flutterby_db as db
+
+class MainMenu:
+    def __init__( self, menu_items, parent ):
+        self.accel = gtk.AccelGroup()
+
+        self.menu_items = menu_items
+
+        item_factory = gtk.ItemFactory( gtk.MenuBar, "<main>", self.accel )
+        item_factory.create_items( self.menu_items )
+
+        parent.add_accel_group( self.accel )
+
+        self.menu = item_factory.get_widget( "<main>" )
+
 class ViewPane:
     def __init__( self ):
         self.box = gtk.ScrolledWindow()
@@ -30,6 +45,14 @@ class EntryPane:
 
 class MainWindow:
     def delete_event( self, widget, event, data = None ):
+        width, height = self.window.get_size()
+        x, y = self.window.get_position()
+
+        db.set_param( 'width', width )
+        db.set_param( 'height', height )
+        db.set_param( 'xpos', x )
+        db.set_param( 'ypos', y )
+        
         gtk.main_quit()
         return False
     
@@ -37,8 +60,26 @@ class MainWindow:
         self.window = gtk.Window( gtk.WINDOW_TOPLEVEL )
         self.window.connect( 'delete_event', self.delete_event )
 
+        width = db.get_param( 'width', 200 )
+        height = db.get_param( 'height', 600 )
+        x = db.get_param( 'xpos', 0 )
+        y = db.get_param( 'ypos', 0 )
+        
+        self.window.resize( width, height )
+        self.window.move( x, y )
+        
         mainbox = gtk.VBox( False, 0 )
 
+        # The main menu
+        # self.mainmenu = MainMenu( ( ( "/_Flutterby", None, None, 0, "<Branch>", ),
+        #                             ( "/Flutterby/Accounts",
+        #                               None, None, 0,
+        #                               None, ),
+        #                             ( "/_Help", None, None, 0, "<Branch>", ), ),
+        #                           self.window )
+        # self.mainmenu.menu.show()
+        # mainbox.pack_start( self.mainmenu.menu, False, True, 0 ) 
+        
         # The reading/viewing area
         self.view = ViewPane()
         mainbox.pack_start( self.view.box, True, True, 0 )
