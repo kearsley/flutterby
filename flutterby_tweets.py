@@ -1,59 +1,58 @@
 import webbrowser
 
-import twitter as t
+import tweepy as t
 
 import flutterby_db as db
-import flutterby_widgets as widgets
+import flutterby_widgets as w
 
-CONSUMER_KEY = 'j7Fp4cAHlZe3TPoVkoTkeg'
-CONSUMER_SECRET = 'RFpGkyNE8zqTIbYcysWIw7oNPKqriSHYZwNj5Frzrf4'
+CONSUMER_KEY = 'Y9mmRBwdZVXeTsb97QTRg'
+CONSUMER_SECRET = 'VOj3aY0kIZAQ65S7MM4g5Got3QfzQkn6r5q6jKsw'
 
 def authenticate( account ):
-    oauth_token, oauth_token_secret = db.get_account( account )
-
-    if not oauth_token or not oauth_token_secret:
-        auth = t.OAuth( '', '', CONSUMER_KEY, CONSUMER_SECRET )
-        twitter = t.Twitter( auth = auth,
-                             format = '' )
-        ( oauth_token,
-          oauth_token_secret ) = parse_oauth_tokens( twitter.oauth.request_token() )
-
-        oauth_url = ( 'http://api.twitter.com/oauth/authorize?oauth_token=%s' %
-                      oauth_token )
+    key, secret = db.get_account( account )
+    auth = t.OAuthHandler( CONSUMER_KEY, CONSUMER_SECRET )
+    if secret:
+        auth.set_access_token( key, secret )
+    else:
         try:
-            r = webbrowser.open( oauth_url )
-            if not r:
-                raise Exception()
-        except:
+            redirect_url = auth.get_authorization_url()
+            webbrowser.open( redirect_url )
+        except tweepy.TweepError:
+            print 'Error! Failed to get request token.'
             return None
 
-        oauth_verifier = widgets.prompt_dialog( 'Please enter the PIN given '
-                                                'by Twitter.',
-                                                'PIN' )
-        oauth_verifier = oauth_verifier.strip()
+        verifier = w.prompt_dialog( 'Please enter the PIN provided by Twitter.',
+                                    'PIN' )
 
-        auth = t.OAuth( oauth_token,
-                        oauth_token_secret,
-                        CONSUMER_KEY,
-                        CONSUMER_SECRET )
-        twitter = t.Twitter( auth = auth,
-                             format='' )
-        ( oauth_token, oauth_token_secret ) = parse_oauth_tokens( twitter.oauth.access_token( oauth_verifier=oauth_verifier ) )
+        try:
+            auth.get_access_token( verifier )
+        except tweepy.TweepError:
+            print 'Error! Failed to get access token.'
+            return None
 
-        db.set_account( account, oauth_token, oauth_token_secret )
+        db.set_account( account, auth.access_token.key, auth.access_token.secret )
 
-    twitter = t.Twitter( auth = t.OAuth( oauth_token,
-                                         oauth_token_secret,
-                                         CONSUMER_KEY,
-                                         CONSUMER_SECRET ),
-                         format = '' )
-    return twitter
+    return auth
 
-def parse_oauth_tokens(result):
-    for r in result.split('&'):
-        k, v = r.split('=')
-        if k == 'oauth_token':
-            oauth_token = v
-        elif k == 'oauth_token_secret':
-            oauth_token_secret = v
-    return oauth_token, oauth_token_secret
+def make_api( account, auth = None ):
+    if not auth:
+        auth = authenticate( account )
+    return t.API( auth )
+
+def get_public( account, auth = None ):
+    api = make_api( account, auth )
+
+    return api.public_timeline()
+
+def get_friends( account, auth = None ):
+    api = make_api( account, auth )
+
+    return api.friends_timeline()
+
+def get_save_friends( account, auth = None ):
+    tweets = get_friends( account, auth )
+
+    for tweet in tweets:
+        if not db.tweet_exists( tweet_id = tweet.id ):
+            db.add_tweet( account, tweet )
+    return tweets

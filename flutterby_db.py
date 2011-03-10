@@ -1,4 +1,4 @@
-import os, cPickle
+import os, cPickle, time
 
 import sqlite3 as s3
 
@@ -37,18 +37,23 @@ def build_db():
         return
 
     execute_sql( 'create table settings(key text unique, value text)' )
-    execute_sql( 'create table accounts(name text unique, token text, secret text)' )
-    execute_sql( 'create table tweets(id integer primary key asc, '
-                 'timestamp integer, '
-                 'account text, '
-                 'from_account text, '
-                 'body text)' )
+    execute_sql( 'create table accounts(name text unique, token text, secret text, last_checked integer)' )
+    execute_sql( 'create table tweets(id integer primary key asc, tweet_id integer unique, timestamp integer, account text, from_account text, tweet text)' )
 
 def dump_table( name ):
     build_db()
 
-    return execute_sql( 'select * from %s' % name, None )
+    return execute_sql( 'select * from %s' % name )
 
+def clear_table( name ):
+    build_db()
+
+    return execute_sql( 'delete from %s' % name )
+
+def drop_table( name ):
+    build_db()
+
+    return execute_sql( 'drop table %s' % name )
 
 ### Parameters
 
@@ -89,9 +94,9 @@ def get_account( name ):
 def set_account( name, token, secret ):
     build_db()
 
-    ret = execute_sql( 'insert or replace into accounts (name, token, secret) '
-                       'values(?, ?, ?)',
-                       ( name, token, secret ) )
+    ret = execute_sql( 'insert or replace into accounts (name, token, secret, last_checked) '
+                       'values(?, ?, ?, ?)',
+                       ( name, token, secret, 0 ) )
 
     return ret
 
@@ -105,3 +110,82 @@ def list_accounts():
     build_db()
 
     return [ x[0] for x in execute_sql( 'select name from accounts' ) ]
+
+def accounts_exist():
+    return len( list_accounts() ) > 0
+
+
+### Tweets
+
+def add_tweet( account, tweet ):
+    from_account = tweet.author.screen_name
+    pickled_tweet = cPickle.dumps( tweet )
+    timestamp = time.mktime( tweet.created_at.timetuple() )
+
+    return execute_sql( 'insert or replace into tweets '
+                        '(tweet_id, timestamp, account, from_account, tweet) '
+                        'values(?, ?, ?, ?, ?)',
+                        (tweet.id, timestamp, account, from_account, pickled_tweet) )
+
+def tweet_where_clause( id = None,
+                        account = None,
+                        from_account = None,
+                        tweet_id = None,
+                        or_flag = False ):
+    where = []
+    values = []
+    if id:
+        where.append( 'id=?' )
+        values.append( id )
+    if account:
+        where.append( 'account=?' )
+        values.append( account )
+    if from_account:
+        where.append( 'from_account=?' )
+        values.append( from_account )
+    if tweet_id:
+        where.append( 'tweet_id=?' )
+        values.append( tweet_id )
+
+    join_word = ' and '
+    if or_flag:
+        join_word = ' or '
+    where_clause = ''
+    if len( where ):
+        where_clause = 'where %s' % ' and '.join( where )
+
+    return where_clause, values
+
+def get_tweets( id = None,
+                account = None,
+                from_account = None,
+                tweet_id = None,
+                or_flag = False ):
+    where_clause, values = tweet_where_clause( id, account, from_account, tweet_id,
+                                               or_flag ) 
+    tweets = execute_sql( 'select * from tweets %s' % where_clause,
+                          values )
+
+    ret = []
+    for x in tweets:
+        try:
+            ret.append( cPickle.loads( str( x[4] ) ) )
+        except:
+            pass
+    return ret
+
+def delete_tweets( id = None,
+                   account = None,
+                   from_account = None,
+                   tweet_id = None,
+                   or_flag = False ):
+    where_clause, values = tweet_where_clause( id, account, from_account, tweet_id,
+                                               or_flag ) 
+    tweets = execute_sql( 'delete from tweets %s' % where_clause,
+                          values )
+    return tweets
+
+def tweet_exists( id = None, tweet_id = None ):
+    tweets = get_tweets( id = id, tweet_id = tweet_id, or_flag = True )
+
+    return len( tweets ) > 0
