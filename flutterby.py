@@ -1,5 +1,5 @@
-import gobject
-import sys,string
+import gobject, gtk
+import sys, string, threading
 
 import flutterby_db as db
 import flutterby_tweets as tweets
@@ -34,16 +34,48 @@ class EntryPane:
         self.text_entry.set_wrap_mode( w.WRAP_WORD )
 
         self.text_entry.show()
-        self.box.pack_start( self.text_entry, True, True, 5 )
+        self.box.pack_start( self.text_entry, True, True, 2 )
+
+        rbox = w.VBox( False, 2 )
 
         # The count of remaining characters in the tweet
         self.character_count = w.Label( '140' )
         self.character_count.show()
-        
-        self.box.pack_start( self.character_count, False, False, 5 )
+
+        self.spinner = w.Spinner()
+        self.spinner.set_sensitive( False )
+        self.spinner.show()
+
+        rbox.pack_start( self.character_count, False, False, 0 )
+        rbox.pack_start( self.spinner, False, False, 0 )
+        rbox.show()
+
+        self.box.pack_start( rbox, False, False, 2 )
         self.box.show()
 
+    def start_spinner( self ):
+        self.spinner.set_sensitive( True )
+        self.spinner.start()
+
+    def stop_spinner( self ):
+        self.spinner.stop()
+        self.spinner.set_sensitive( False )        
+
 class MainWindow:
+    def get_lock( self, lock ):
+        l = self.locks.get( lock, None )
+        if not l:
+            raise Exception( 'The lock "%s" does not appear to exist.' % lock )
+        return l
+    
+    def lock( self, lock ):
+        l = self.get_lock( lock )
+        l.acquire()
+
+    def release( self, lock ):
+        l = self.get_lock( lock )
+        l.release()
+    
     def delete_event( self, widget, event = None, data = None ):
         width, height = self.window.get_size()
         x, y = self.window.get_position()
@@ -90,8 +122,20 @@ class MainWindow:
         self.uimanager.insert_action_group( self.actiongroup, 0 )
 
         self.uimanager.add_ui_from_string( UI )
+
+    def set_timelines( self, timelines ):
+        self.lock( 'timelines' )
+
+        self.timelines = timelines
+
+        self.release( 'timelines' )
         
     def __init__( self ):
+        self.locks = { 'timelines' : threading.Lock(),
+                       }
+        self.timelines = [ tweets.Timeline( acc ) for acc in db.list_accounts() ]
+        self.refresher = tweets.RefreshTimelines( self )
+        
         self.window = w.Window( w.WINDOW_TOPLEVEL )
         self.window.connect( 'delete_event', self.delete_event )
 
@@ -126,6 +170,10 @@ class MainWindow:
 
         mainbox.show()
         self.window.add( mainbox )
+
+        def start_refresher():
+            self.refresher.start()
+        threading.Timer( 10.0, start_refresher ).start()
 
 class AccountsWindow:
     def get_selected_account( self ):
@@ -236,6 +284,8 @@ class PreferencesWindow:
         self.window.add( mainbox )
 
 def main():
+    gobject.threads_init()
+
     mw = MainWindow()
     mw.window.show()
     

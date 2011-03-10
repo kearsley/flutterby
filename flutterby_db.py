@@ -163,7 +163,8 @@ def get_tweets( id = None,
                 or_flag = False ):
     where_clause, values = tweet_where_clause( id, account, from_account, tweet_id,
                                                or_flag ) 
-    tweets = execute_sql( 'select * from tweets %s' % where_clause,
+    tweets = execute_sql( ( 'select * from tweets %s order by timestamp desc' %
+                            where_clause ),
                           values )
 
     ret = []
@@ -171,7 +172,7 @@ def get_tweets( id = None,
         try:
             ret.append( cPickle.loads( str( x[4] ) ) )
         except:
-            pass
+            delete_tweets( id = x[0] )
     return ret
 
 def delete_tweets( id = None,

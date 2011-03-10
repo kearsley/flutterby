@@ -1,4 +1,6 @@
-import webbrowser
+import threading, time, webbrowser
+
+import gobject
 
 import tweepy as t
 
@@ -56,3 +58,49 @@ def get_save_friends( account, auth = None ):
         if not db.tweet_exists( tweet_id = tweet.id ):
             db.add_tweet( account, tweet )
     return tweets
+
+class Timeline( set ):
+    def __init__( self, account ):
+        self.account = account
+        self.model = w.ListStore( str )
+
+        super( Timeline, self ).__init__()
+
+        self.refresh()
+
+    def refresh( self ):
+        get_save_friends( self.account )
+
+        tweets = db.get_tweets( account = self.account )
+        if len( tweets ) > 20:
+            tweets = tweets[:19]
+        self.update( tweets )
+
+        self.model.clear()
+        for tweet in sorted( list( self ),
+                             key = lambda x: x.created_at,
+                             reverse = True ):
+            self.model.add( (tweet.text,) )
+
+class RefreshTimelines( threading.Thread ):
+    def __init__( self, main_window, loop = True ):
+        self.main_window = main_window
+        self.loop = loop
+
+        super( RefreshTimelines, self ).__init__()
+
+    def start_spinner( self ):
+        self.main_window.entry.start_spinner()
+
+    def stop_spinner( self ):
+        self.main_window.entry.stop_spinner()
+
+    def run( self ):
+        gobject.idle_add( self.start_spinner )
+        for timeline in self.main_window.timelines:
+            timeline.refresh()
+        gobject.idle_add( self.stop_spinner )
+
+        if self.loop:
+            threading.Timer( db.get_param( 'delay', 15 ) * 60.0,
+                             self.run )
