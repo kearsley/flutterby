@@ -29,26 +29,28 @@ def execute_multi( statements = [],
 
     return ret
         
-def execute_sql( statement, params = (), pre_hook = None, post_hook = None ):
+def execute_sql( statement, params = None, pre_hook = None, post_hook = None ):
     return execute_multi( [ statement ], [ params ], pre_hook, post_hook )[0]
 
 def build_db():
     if os.path.exists( DB_PATH ):
         return
 
-    execute_sql( 'create table settings(key text unique, value text)',
-                 None )
+    execute_sql( 'create table settings(key text unique, value text)' )
+    execute_sql( 'create table accounts(name text unique, token text, secret text)' )
     execute_sql( 'create table tweets(id integer primary key asc, '
                  'timestamp integer, '
                  'account text, '
                  'from_account text, '
-                 'body text)',
-                 None )
+                 'body text)' )
 
 def dump_table( name ):
     build_db()
 
     return execute_sql( 'select * from %s' % name, None )
+
+
+### Parameters
 
 def get_param( key, default = None ):
     build_db()
@@ -69,3 +71,37 @@ def set_param( key, value ):
                        ( key, value ) )
 
     return ret
+
+
+### Accounts
+
+def get_account( name ):
+    build_db()
+
+    ret = execute_sql( 'select token,secret from accounts where name=?',
+                       ( name, ) )
+    if not ret or not len( ret ):
+        ret = (None, None)
+    else:
+        ret = ret[0]
+    return ret
+
+def set_account( name, token, secret ):
+    build_db()
+
+    ret = execute_sql( 'insert or replace into accounts (name, token, secret) '
+                       'values(?, ?, ?)',
+                       ( name, token, secret ) )
+
+    return ret
+
+def delete_account( name ):
+    build_db()
+
+    return execute_sql( 'delete from accounts where name=?',
+                        ( name, ) )
+    
+def list_accounts():
+    build_db()
+
+    return [ x[0] for x in execute_sql( 'select name from accounts' ) ]
