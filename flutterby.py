@@ -23,6 +23,7 @@ TYPING_DELAY = 0.5
 
 class ViewPane:
     def __init__( self, parent ):
+        self.simple_click = False
         self.parent = parent
         
         self.box = w.ScrolledWindow()
@@ -30,57 +31,18 @@ class ViewPane:
         self.list = w.TextView( self.parent.timelines.buffer )
         self.list.set_wrap_mode( w.WRAP_WORD )
         self.list.set_editable( False )
+
+        self.parent.timelines.add_listener( self )
         
         self.list.show()
         self.box.add_with_viewport( self.list )
         self.box.show()
 
+    def notify( self, message ):
+        if message == 'timeline buffer updated':
+            self.list.set_buffer( self.parent.timelines.buffer )
+
 class EntryPane:
-    def key_event( self, widget, event ):
-        keyname = w.gdk.keyval_name( event.keyval )
-        if keyname == 'Return' and event.state == 0:
-            self.send_event( widget, True )
-
-    def typing_event( self, widget ):
-        if time.time() - self.last_changed < TYPING_DELAY:
-            return True
-        
-        buf = self.text_entry.get_buffer()
-        start, end = buf.get_bounds()
-        
-        text = unicode( buf.get_text( start, end ),
-                        'utf-8' )
-        norm = unicodedata.normalize( 'NFC', text )
-        remaining = TWEET_LENGTH - len( norm )
-
-        self.character_count.set_text( unicode( remaining ) )
-
-        self.last_changed = time.time()
-        
-    def send_event( self, widget, by_typing = False ):
-        self.start_spinner()
-
-        buf = self.text_entry.get_buffer()
-        point = buf.get_iter_at_mark( buf.get_insert() )
-        if by_typing:
-            buf.backspace( point, False, True )
-
-        start, end = buf.get_bounds()
-        text = buf.get_text( start, end )
-
-        text = text.strip()
-        while len( text ) and text[-1] == '\n':
-            text = text[:-1]
-
-        print text
-        if tweets.tweet( db.list_accounts()[0], text ):
-            buf.delete( start, end )
-            self.parent.refresh_event( widget )
-            self.stop_spinner()
-            return False
-        self.stop_spinner()
-        return True
-    
     def __init__( self, parent ):
         self.last_changed = 0
         self.parent = parent
@@ -115,6 +77,49 @@ class EntryPane:
         self.box.pack_start( rbox, False, False, 2 )
         self.box.show()
 
+    def key_event( self, widget, event ):
+        keyname = w.gdk.keyval_name( event.keyval )
+        if keyname == 'Return' and event.state == 0:
+            self.send_event( widget, True )
+
+    def typing_event( self, widget ):
+        if time.time() - self.last_changed < TYPING_DELAY:
+            return False
+        
+        buf = self.text_entry.get_buffer()
+        start, end = buf.get_bounds()
+        
+        text = unicode( buf.get_text( start, end ),
+                        'utf-8' )
+        norm = unicodedata.normalize( 'NFC', text )
+        remaining = TWEET_LENGTH - len( norm )
+
+        self.character_count.set_text( unicode( remaining ) )
+
+        self.last_changed = time.time()
+        
+    def send_event( self, widget, by_typing = False ):
+        self.start_spinner()
+
+        buf = self.text_entry.get_buffer()
+        point = buf.get_iter_at_mark( buf.get_insert() )
+        if by_typing:
+            buf.backspace( point, False, True )
+
+        start, end = buf.get_bounds()
+        text = buf.get_text( start, end )
+
+        text = text.strip()
+        while len( text ) and text[-1] == '\n':
+            text = text[:-1]
+
+        print text
+        if tweets.tweet( db.list_accounts()[0], text ):
+            buf.delete( start, end )
+            self.parent.refresh_event( widget )
+            self.stop_spinner()
+        self.stop_spinner()    
+
     def start_spinner( self ):
         self.spinner.set_sensitive( True )
         self.spinner.start()
@@ -124,6 +129,52 @@ class EntryPane:
         self.spinner.set_sensitive( False )        
 
 class MainWindow:
+    def __init__( self, wname ):
+        self.locks = { 'timelines' : threading.Lock(),
+                       }
+        self.timelines = tweets.TimelineSet()
+        self.timelines.add_list( [ tweets.Timeline( acc )
+                                   for acc in db.list_accounts() ] )
+        self.refresher = tweets.RefreshTimelines( self )
+        
+        self.window = w.PWindow( wname, w.WINDOW_TOPLEVEL )
+        self.window.set_title( 'Flutterby' )
+        self.window.set_icon_from_file( 'resources/img/flutterby_icon.png' )
+        self.window.connect( 'delete_event', self.delete_event )
+
+        mainbox = w.VBox( False, 0 )
+
+        # The reading/viewing area
+        self.view = ViewPane( self )
+
+        # The editing area
+        self.entry = EntryPane( self )
+
+        # The main menu
+        self.setup_ui()
+        self.menubar = self.uimanager.get_widget( '/MenuBar' )
+        
+        mainbox.pack_start( self.menubar, False, True, 0 )
+        mainbox.pack_start( self.view.box, True, True, 0 )
+
+        separator = w.HSeparator()
+        separator.show()
+        mainbox.pack_start( separator, False, True, 2 )
+        
+        mainbox.pack_start( self.entry.box, False, False, 2 )
+
+        mainbox.show()
+        self.window.add( mainbox )
+
+        self.entry.text_entry.grab_focus()
+
+        initial_update = tweets.RefreshTimelines( self,
+                                                  limit = None,
+                                                  loop = False )
+        def start_refresher():
+            self.refresher.start()
+        threading.Timer( 5.0, start_refresher ).start()
+
     def get_lock( self, lock ):
         l = self.locks.get( lock, None )
         if not l:
@@ -139,14 +190,6 @@ class MainWindow:
         l.release()
     
     def delete_event( self, widget, event = None, data = None ):
-        width, height = self.window.get_size()
-        x, y = self.window.get_position()
-
-        db.set_param( 'width', width )
-        db.set_param( 'height', height )
-        db.set_param( 'xpos', x )
-        db.set_param( 'ypos', y )
-        
         w.main_quit()
         return False
 
@@ -196,61 +239,7 @@ class MainWindow:
     def set_timelines( self, timelines ):
         self.lock( 'timelines' )
         self.timelines = timelines
-        self.release( 'timelines' )
-        
-    def __init__( self ):
-        self.locks = { 'timelines' : threading.Lock(),
-                       }
-        self.timelines = tweets.TimelineSet()
-        self.timelines.add_list( [ tweets.Timeline( acc )
-                                   for acc in db.list_accounts() ] )
-        self.refresher = tweets.RefreshTimelines( self )
-        
-        self.window = w.Window( w.WINDOW_TOPLEVEL )
-        self.window.set_title( 'Flutterby' )
-        self.window.set_icon_from_file( 'resources/img/flutterby_icon.png' )
-        self.window.connect( 'delete_event', self.delete_event )
-
-        width = db.get_param( 'width', 200 )
-        height = db.get_param( 'height', 600 )
-        x = db.get_param( 'xpos', 0 )
-        y = db.get_param( 'ypos', 0 )
-        
-        self.window.set_default_size( width, height )
-        self.window.move( x, y )
-        
-        mainbox = w.VBox( False, 0 )
-
-        # The reading/viewing area
-        self.view = ViewPane( self )
-
-        # The editing area
-        self.entry = EntryPane( self )
-
-        # The main menu
-        self.setup_ui()
-        self.menubar = self.uimanager.get_widget( '/MenuBar' )
-        
-        mainbox.pack_start( self.menubar, False, True, 0 )
-        mainbox.pack_start( self.view.box, True, True, 0 )
-
-        separator = w.HSeparator()
-        separator.show()
-        mainbox.pack_start( separator, False, True, 2 )
-        
-        mainbox.pack_start( self.entry.box, False, False, 2 )
-
-        mainbox.show()
-        self.window.add( mainbox )
-
-        self.entry.text_entry.grab_focus()
-
-        initial_update = tweets.RefreshTimelines( self,
-                                                  limit = None,
-                                                  loop = False )
-        def start_refresher():
-            self.refresher.start()
-        threading.Timer( 5.0, start_refresher ).start()
+        self.release( 'timelines' )        
 
 class AccountsWindow:
     def get_selected_account( self ):
@@ -291,7 +280,7 @@ class AccountsWindow:
     def __init__( self, parent ):
         self.parent = parent
         
-        self.window = w.Window( w.WINDOW_TOPLEVEL )
+        self.window = w.PWindow( 'accounts', w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Accounts' )
         self.window.set_default_size( 200, 400 )
 
@@ -330,18 +319,18 @@ class AccountsWindow:
 class PreferencesWindow:
     def change_refresh( self, widget ):
         self.parent.refresh_event( widget )
-
-        return True
     
     def __init__( self, parent ):
         self.parent = parent
         
-        self.window = w.Window( w.WINDOW_TOPLEVEL )
+        self.window = w.PWindow( 'preferences', w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Preferences' )
 
         self.window.move( 200, 200 )
 
         mainbox = w.VBox( False, 0 )
+
+        grid = w.Table( rows = 3, columns = 2 )
 
         delay_model = w.ListStore( str, int )
         for row in [ ('5 minutes', 5),
@@ -360,7 +349,8 @@ class PreferencesWindow:
             delay_model.append( row )
         delay = w.PComboBoxText( key = 'delay', model = delay_model )
         delay.restore_value()
-        delay_box = w.LabelItem( delay, 'Delay between checking for new tweets' )
+        delay_label = w.Label( 'Delay between checking for new tweets' )
+        delay_label.set_alignment( 0, 0.5 )
 
         tweet_count_model = w.ListStore( str, int )
         for row in [ ('10', 10),
@@ -380,7 +370,8 @@ class PreferencesWindow:
                                        model = tweet_count_model )
         tweet_count.connect( 'changed', self.change_refresh )
         tweet_count.restore_value()
-        tweet_count_box = w.LabelItem( tweet_count, 'Maximum tweets to display' )
+        tweet_count_label = w.Label( 'Maximum tweets to display' )
+        tweet_count_label.set_alignment( 0, 0.5 )
 
         tweet_age_model = w.ListStore( str, int )
         for row in [ ('1 hour', 1),
@@ -403,16 +394,29 @@ class PreferencesWindow:
                                      model = tweet_age_model )
         tweet_age.connect( 'changed', self.change_refresh )
         tweet_age.restore_value()
-        tweet_age_box = w.LabelItem( tweet_age, 'Maximum age of tweets to display' )
+        tweet_age_label = w.Label( 'Maximum age of tweets to display' )
+        tweet_age_label.set_alignment( 0, 0.5 )
 
-        for widget in [ delay, delay_box,
-                        tweet_count, tweet_count_box,
-                        tweet_age, tweet_age_box ]:
+        for widget in [ delay, delay_label,
+                        tweet_count, tweet_count_label,
+                        tweet_age, tweet_age_label ]:
             widget.show()
 
-        mainbox.pack_start( delay_box, False, False, 0 )
-        mainbox.pack_start( tweet_count_box, False, False, 0 )
-        mainbox.pack_start( tweet_age_box, False, False, 0 )
+        grid.attach( delay_label, 0, 1, 0, 1, w.FILL, w.FILL )
+        grid.attach( tweet_count_label, 0, 1, 1, 2, w.FILL, w.FILL )
+        grid.attach( tweet_age_label, 0, 1, 2, 3, w.FILL, w.FILL )
+        grid.attach( delay, 1, 2, 0, 1, w.FILL, w.FILL )
+        grid.attach( tweet_count, 1, 2, 1, 2, w.FILL, w.FILL )
+        grid.attach( tweet_age, 1, 2, 2, 3, w.FILL, w.FILL )
+
+        grid.show()
+        mainbox.pack_start( grid, False, True, 0 )
+
+        show_client = w.PCheckButton( 'show_client', 'Show posting client' )
+        show_client.connect( 'toggled', self.change_refresh )
+
+        show_client.show()
+        mainbox.pack_start( show_client, False, False, 0 )
 
         mainbox.show()
         self.window.add( mainbox )
@@ -420,7 +424,7 @@ class PreferencesWindow:
 def main():
     gobject.threads_init()
 
-    mw = MainWindow()
+    mw = MainWindow( 'main' )
     mw.window.show()
     
     w.main()

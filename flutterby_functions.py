@@ -11,7 +11,6 @@ def ago( timestamp ):
     now = time.mktime( time.gmtime() )
     delta = now - timestamp
 
-    count, count2, word, word2 = None, None, None, None
     if delta > YEAR:
         count = delta // YEAR
         word = 'year'
@@ -23,40 +22,23 @@ def ago( timestamp ):
         word = 'day'
     elif delta > HOUR:
         count = delta // HOUR
-        count2 = ( delta - count * HOUR ) // MINUTE
         word = 'hour'
-        word2 = 'minute'
     elif delta > MINUTE:
         count = delta // MINUTE
-        count2 = ( delta - count * MINUTE ) // SECOND
         word = 'minute'
-        if count2:
-            word2 = 'second'
-        else:
-            count2 = None
     else:
         count = delta // SECOND
         word = 'second'
 
     if not word or ( not count and count != 0 ):
         return ''
+    if delta < 30 * SECOND:
+        return 'just now'
     if count != 1:
         word = pluralize( word )
-    if word2 and count2:
-        if count2 != 1:
-            word2 = pluralize( word2 )
-        return ( '%(c1)d %(w1)s and %(c2)d %(w2)s ago' %
-                 { 'c1' : count,
-                   'c2' : count2,
-                   'w1' : word,
-                   'w2' : word2,
-                   } )
     return ( '%(c1)d %(w1)s ago' %
              { 'c1' : count,
-               'c2' : count2,
-               'w1' : word,
-               'w2' : word2,
-               } )
+               'w1' : word } )
     
 def pluralize( word ):
     return word + 's'

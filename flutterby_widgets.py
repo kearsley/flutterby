@@ -1,5 +1,7 @@
-import pygtk
+import pango, pygtk
 from gtk import *
+
+import webbrowser
 
 import flutterby_db as db
 
@@ -8,6 +10,12 @@ class PCheckButton( CheckButton ):
         super( PCheckButton, self ).__init__( label, use_underline )
         
         self.db_key = key
+        self.set_active( db.get_param( self.db_key, False ) )
+
+        self.connect( 'toggled', self.toggle_event )
+
+    def toggle_event( self, widget ):
+        db.set_param( self.db_key, self.get_active() )
 
 class PComboBox( ComboBox ):
     def __init__( self, key, data_column = 1, model = None ):
@@ -24,8 +32,6 @@ class PComboBox( ComboBox ):
         value = model.get_value( row, self.data_column )
 
         db.set_param( self.db_key, value )
-
-        return True
 
     def restore_value( self ):
         model = self.get_model()
@@ -50,6 +56,37 @@ class PComboBoxText( PComboBox ):
         self.pack_start( self.cell )
         self.add_attribute( self.cell, 'text', 0 )
 
+class PWindow( Window ):
+    def __init__( self, key, type = WINDOW_TOPLEVEL ):
+        super( PWindow, self ).__init__( type )
+
+        self.db_key = key
+
+        width, height = self.get_size()
+        x, y = self.get_position()
+
+        width = db.get_param( self.db_key + ':width', width )
+        height = db.get_param( self.db_key + ':height', height )
+        x = db.get_param( self.db_key + ':xpos', x )
+        y = db.get_param( self.db_key + ':ypos', y )
+
+        self.set_default_size( width, height )
+        self.move( x, y )
+
+        self.connect( 'delete-event', self.destroy_event )
+        self.connect( 'destroy-event', self.destroy_event )
+
+    def destroy_event( self, widget, event ):
+        print 'Destroying %s' % str( self )
+
+        width, height = self.get_size()
+        x, y = self.get_position()
+
+        db.set_param( self.db_key + ':width', width )
+        db.set_param( self.db_key + ':height', height )
+        db.set_param( self.db_key + ':xpos', x )
+        db.set_param( self.db_key + ':ypos', y )
+
 class LabelItem( HBox ):
     def __init__( self, child, label = None, homogenous = False, spacing = 0 ):
         super( LabelItem, self ).__init__( homogenous, spacing )
@@ -60,7 +97,7 @@ class LabelItem( HBox ):
             self.label = Label( '' )
         self.label.show()
             
-        self.pack_start( self.label, True, True, 0 )
+        self.pack_start( self.label, True, False, 0 )
         self.pack_start( child, False, False, 0 )
 
 class DBTreeView( TreeView ):
@@ -89,6 +126,87 @@ class DBTreeView( TreeView ):
         self.db_model.clear()
         for row in data:
             self.db_model.append( row )
+
+class ClickableTextTag( TextTag ):
+    def __init__( self, click_action = None, name = None ):
+        self.simple_click = False
+        
+        super( ClickableTextTag, self ).__init__( name )
+
+        self.click_action = click_action
+
+        self.connect( 'event', self.click_event )
+
+    def click_event( self, texttag, widget, event, point ):
+        if event.type == gdk.BUTTON_PRESS:
+            self.simple_click = True
+        if event.type == gdk.MOTION_NOTIFY:
+            self.simple_click = False
+        if event.type == gdk.BUTTON_RELEASE:            
+            return self.click_action( texttag, widget, event, point )
+
+class TweetTextBuffer( TextBuffer ):
+    def __init__( self, table = None ):
+        super( TweetTextBuffer, self ).__init__( table )
+
+        self.setup_tags()
+
+    def setup_tags( self ):
+        table = self.get_tag_table()
+
+        for tag, properties, actions in \
+                [ ('none', {}, None),
+                  ('start',
+                   { 'foreground' : '#222244' },
+                   None),
+                  ('client',
+                   { 'foreground' : '#666666' },
+                   None),
+                  ('hashtag',
+                   { 'foreground' : '#8B864E' },
+                   None),
+                  ('separator',
+                   { 'size-points' : 3 },
+                   None),
+                  ('username',
+                   { 'foreground' : '#551A8B' },
+                   None),
+                  ('url',
+                   { 'foreground' : '#4169E1',
+                     'underline' : pango.UNDERLINE_SINGLE
+                     },
+                   { 'click_action' : self.url_click } ),
+                  ('time',
+                   { 'foreground' : '#666666', },
+                   None),
+                  ('tweet', {}, None)]:
+            if not actions:
+                actions = {}
+            tag = ClickableTextTag( name = tag, **actions )
+            for prop, value in properties.items():
+                tag.set_property( prop, value )
+            table.add( tag )
+
+    def insert_tag_list( self, point, tag_list ):
+        for text, tag in tag_list:
+            if not tag:
+                tag = 'none'
+            self.insert_with_tags_by_name( point, text, tag )
+
+    def url_click( self, texttag, widget, event, point ):
+        start = point.copy()
+
+        flag = start.backward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        flag = point.forward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        url = self.get_slice( start, point )
+
+        webbrowser.open( url )
 
 def prompt_dialog( message, label ):
     def responseToDialog(entry, dialog, response):

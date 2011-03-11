@@ -1,6 +1,7 @@
-import threading, time, webbrowser
+# -*- coding: utf-8 -*-
+import re, threading, time, webbrowser
 
-import gobject
+import gobject, pango
 
 import tweepy as t
 
@@ -77,7 +78,7 @@ def tweet( account, text ):
 
 def tweet_as_dict( tweet ):
     return { 'text' : tweet.text,
-             'author' : tweet.author.screen_name,
+             'author' : '@' + tweet.author.screen_name,
              'ago' : ago( time.mktime( tweet.created_at.timetuple() ) ),
              'client' : tweet.source,
              'client_url' : tweet.source_url,
@@ -86,6 +87,89 @@ def tweet_as_dict( tweet ):
 def tweet_as_text( tweet ):
     return ( 'From @%(author)s: %(text)s\nPosted %(ago)s via %(client)s\n\n' %
              tweet_as_dict( tweet ) )
+
+def tweet_as_tag_list( tweet ):
+    td = tweet_as_dict( tweet )
+    
+    ending_hashtag_re = re.compile( r'\s+(?P<hashtags>(#\w+\s*)+)\s*$' )
+    hashtag_re = re.compile( r'#(?P<hashtag>\w+)\b' )
+    replace_re = re.compile( r'#!#(?P<key>.*)#!#' )
+    ref_re = re.compile( r'@(?P<username>\w+)\b' )
+    response_re = re.compile( r'^\s*(?P<username>@\w+)\b' )
+    retweet_re = re.compile( r'^\s*(?:RT|via)[:]?\s+(?P<username>@\w+)\b',
+                             re.IGNORECASE ) 
+    url_re = re.compile( unicode( r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', 'utf-8' ) )
+
+    match = retweet_re.search( tweet.text )
+    if match:
+        ret = [ ('From ', 'start'),
+                (match.group( 'username'), 'username'),
+                (' via ', None),
+                ('#!#author#!#', 'username'),
+                (': ', None), ]
+        tmp = [ (tweet.text[ match.end(): ], None) ]
+    else:
+        match = response_re.search( tweet.text )
+        if match:
+            ret = [ ('From ', 'start'),
+                    ('#!#author#!#', 'username'),
+                    (' in response to ', None),
+                    (match.group( 'username'), 'username'),
+                    (': ', None), ]
+            tmp = [ (tweet.text[ match.end(): ], None) ]
+        else:
+            ret = [ ('From ', 'start'),
+                    ('#!#author#!#', 'username'),
+                    (': ', None), ]
+            tmp = [ (tweet.text, None) ]
+    text = tmp[0][0]
+    match = ending_hashtag_re.search( text )
+    if match:
+        text = ''.join( [ text[:match.start()],
+                          '  ',
+                          match.group( 'hashtags' ) ] )
+        tmp[0] = (text, None)
+        
+    def tag_blob( regex, use_tag ):
+        tmp2 = []
+        for text, tag in tmp:
+            match = regex.search( text )
+            while match:
+                tmp2.append( (text[ :match.start() ], tag) )
+                tmp2.append( (match.group( 0 ), use_tag) )
+
+                text = text[ match.end(): ]
+                match = regex.search( text )
+            tmp2.append( (text, tag) )
+        return tmp2
+
+    tmp = tag_blob( url_re, 'url' )
+    tmp = tag_blob( ref_re, 'username' )
+    tmp = tag_blob( hashtag_re, 'hashtag' )
+
+    ret += tmp
+
+    if db.get_param( 'show_client' ):
+        ret += [ ('\nPosted ', 'time'),
+                 ('#!#ago#!#', 'time'),
+                 (' via ', 'client' ),
+                 ('#!#client#!#', 'client'),
+                 ('.', 'client'), ]
+    else:
+        ret += [ ('\n', None),
+                 ('Posted ', 'time'),
+                 ('#!#ago#!#', 'time'),
+                 ('.', 'time') ]
+
+    for index in xrange( len( ret ) ):
+        text, tag = ret[ index ]
+        
+        match = replace_re.match( text )
+        if match:
+            text = td[ match.group( 'key' ) ]
+            ret[ index ] = (text, tag)
+
+    return ret
 
 class Timeline( list ):
     def __init__( self, account ):
@@ -129,7 +213,13 @@ class TimelineSet:
     def __init__( self, timelines = [] ):
         self.timelines = timelines
         
-        self.buffer = w.TextBuffer()
+        self.buffer = self.make_buffer()
+        self.listeners = []
+
+    def make_buffer( self ):
+        buf = w.TweetTextBuffer()
+
+        return buf
 
     def add( self, timeline ):
         self.timelines.append( timeline )
@@ -138,6 +228,14 @@ class TimelineSet:
     def add_list( self, li ):
         self.timelines += li
         self.refresh()
+
+    def add_listener( self, listener ):
+        if listener not in self.listeners:
+            self.listeners.append( listener )
+
+    def notify_listeners( self, message ):
+        for l in self.listeners:
+            l.notify( message )
 
     def tweets( self, limit = 20 ):
         tweets = []
@@ -163,18 +261,26 @@ class TimelineSet:
         return tweets
 
     def refresh( self, limit = 20 ):
-        buf = w.TextBuffer()
+        print 'Refreshing'
+        
+        tweets = [ tweet_as_tag_list( tweet ) for tweet in self.tweets() ]
+        buf = w.TweetTextBuffer()
+        count = 0
         point = buf.get_end_iter()
-        for tweet in self.tweets():
-            buf.insert( point, tweet_as_text( tweet ) )
+        for tweet in tweets:
+            if count > 0:
+                buf.insert_tag_list( point,
+                                     [ ('\n\n', 'separator') ] )
+            buf.insert_tag_list( point, tweet )
+            count += 1        
 
         gobject.idle_add( self.update, buf )
 
     def update( self, new_buffer ):
-        start, end = new_buffer.get_bounds()
-        self.buffer.set_text( new_buffer.get_text( start, end ) )
+        self.buffer = new_buffer
+
+        self.notify_listeners( 'timeline buffer updated' )
         
-        return self.buffer
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
