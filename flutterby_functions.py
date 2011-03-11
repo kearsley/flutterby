@@ -8,7 +8,7 @@ WEEK = 7 * DAY
 YEAR = 365 * DAY
 
 def ago( timestamp ):
-    now = time.time()
+    now = time.mktime( time.gmtime() )
     delta = now - timestamp
 
     count, count2, word, word2 = None, None, None, None

@@ -67,7 +67,11 @@ def get_save_friends( account, auth = None ):
 def tweet( account, text ):
     api = make_api( account )
 
-    return api.update_status( text )
+    try:
+        api.update_status( text )
+        return True
+    except t.TweepError:
+        return None
 
 ### Formatting tweets
 
@@ -143,6 +147,19 @@ class TimelineSet:
             tweets += [ x for x in tl if x.id not in ids ]
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
+
+        tweet_count = db.get_param( 'tweet_count' )
+        if tweet_count > 0 and len( tweets ) > tweet_count:
+            tweets = tweets[:( tweet_count - 1 )]
+
+        tweet_age = db.get_param( 'tweet_age' )
+        if tweet_age > 0:
+            tweet_age *= 3600
+            tweets = [ tweet for tweet in tweets
+                       if ( ( time.mktime( time.gmtime() ) -
+                              time.mktime( tweet.created_at.timetuple() ) ) <
+                            tweet_age ) ]
+        
         return tweets
 
     def refresh( self, limit = 20 ):
@@ -183,6 +200,6 @@ class RefreshTimelines( threading.Thread ):
         gobject.idle_add( self.stop_spinner )
 
         self.first_run = False
-        if self.loop:
+        if self.loop and db.get_param( 'delay' ) > 0:
             threading.Timer( db.get_param( 'delay', 15 ) * 60.0,
                              self.run )

@@ -23,9 +23,9 @@ class PComboBox( ComboBox ):
         row = self.get_active_iter()
         value = model.get_value( row, self.data_column )
 
-        print value
-
         db.set_param( self.db_key, value )
+
+        return True
 
     def restore_value( self ):
         model = self.get_model()
@@ -60,7 +60,7 @@ class LabelItem( HBox ):
             self.label = Label( '' )
         self.label.show()
             
-        self.pack_start( self.label, False, False, 0 )
+        self.pack_start( self.label, True, True, 0 )
         self.pack_start( child, False, False, 0 )
 
 class DBTreeView( TreeView ):

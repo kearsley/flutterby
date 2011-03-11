@@ -1,5 +1,5 @@
 import gobject, gtk, pango
-import sys, string, threading
+import sys, string, threading, time, unicodedata
 
 import flutterby_db as db
 import flutterby_tweets as tweets
@@ -17,6 +17,9 @@ UI = '''<ui>
     </menu>
   </menubar>
 </ui>'''
+
+TWEET_LENGTH = 140
+TYPING_DELAY = 0.5
 
 class ViewPane:
     def __init__( self, parent ):
@@ -36,10 +39,32 @@ class EntryPane:
     def key_event( self, widget, event ):
         keyname = w.gdk.keyval_name( event.keyval )
         if keyname == 'Return' and event.state == 0:
-            self.send_event( widget )
+            self.send_event( widget, True )
 
-    def send_event( self, widget ):
+    def typing_event( self, widget ):
+        if time.time() - self.last_changed < TYPING_DELAY:
+            return True
+        
         buf = self.text_entry.get_buffer()
+        start, end = buf.get_bounds()
+        
+        text = unicode( buf.get_text( start, end ),
+                        'utf-8' )
+        norm = unicodedata.normalize( 'NFC', text )
+        remaining = TWEET_LENGTH - len( norm )
+
+        self.character_count.set_text( unicode( remaining ) )
+
+        self.last_changed = time.time()
+        
+    def send_event( self, widget, by_typing = False ):
+        self.start_spinner()
+
+        buf = self.text_entry.get_buffer()
+        point = buf.get_iter_at_mark( buf.get_insert() )
+        if by_typing:
+            buf.backspace( point, False, True )
+
         start, end = buf.get_bounds()
         text = buf.get_text( start, end )
 
@@ -48,13 +73,16 @@ class EntryPane:
             text = text[:-1]
 
         print text
-        tweets.tweet( db.list_accounts()[0], text )
-        
-        buf.delete( start, end )
-
-        self.parent.refresh_event( widget )
+        if tweets.tweet( db.list_accounts()[0], text ):
+            buf.delete( start, end )
+            self.parent.refresh_event( widget )
+            self.stop_spinner()
+            return False
+        self.stop_spinner()
+        return True
     
     def __init__( self, parent ):
+        self.last_changed = 0
         self.parent = parent
         
         self.box = w.HBox( False, 5 )
@@ -64,6 +92,7 @@ class EntryPane:
         self.text_entry.set_wrap_mode( w.WRAP_WORD )
 
         self.text_entry.connect( 'key_release_event', self.key_event )
+        self.text_entry.get_buffer().connect( 'changed', self.typing_event )
         self.text_entry.set_events( w.gdk.KEY_RELEASE )
 
         self.text_entry.show()
@@ -121,16 +150,16 @@ class MainWindow:
         w.main_quit()
         return False
 
-    def refresh_event( self, event ):
+    def refresh_event( self, widget ):
         refresher = tweets.RefreshTimelines( self, loop = False )
         refresher.start()
 
-    def accounts_event( self, event ):
-        aw = AccountsWindow()
+    def accounts_event( self, widget ):
+        aw = AccountsWindow( self )
         aw.window.show()
 
-    def preferences_event( self, event ):
-        pw = PreferencesWindow()
+    def preferences_event( self, widget ):
+        pw = PreferencesWindow( self )
         pw.window.show()
 
     def setup_ui( self ):
@@ -178,6 +207,8 @@ class MainWindow:
         self.refresher = tweets.RefreshTimelines( self )
         
         self.window = w.Window( w.WINDOW_TOPLEVEL )
+        self.window.set_title( 'Flutterby' )
+        self.window.set_icon_from_file( 'resources/img/flutterby_icon.png' )
         self.window.connect( 'delete_event', self.delete_event )
 
         width = db.get_param( 'width', 200 )
@@ -211,6 +242,8 @@ class MainWindow:
 
         mainbox.show()
         self.window.add( mainbox )
+
+        self.entry.text_entry.grab_focus()
 
         initial_update = tweets.RefreshTimelines( self,
                                                   limit = None,
@@ -255,7 +288,9 @@ class AccountsWindow:
     def edit_event( self, widget ):
         pass
     
-    def __init__( self ):
+    def __init__( self, parent ):
+        self.parent = parent
+        
         self.window = w.Window( w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Accounts' )
         self.window.set_default_size( 200, 400 )
@@ -293,7 +328,14 @@ class AccountsWindow:
         self.window.add( mainbox )
 
 class PreferencesWindow:
-    def __init__( self ):
+    def change_refresh( self, widget ):
+        self.parent.refresh_event( widget )
+
+        return True
+    
+    def __init__( self, parent ):
+        self.parent = parent
+        
         self.window = w.Window( w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Preferences' )
 
@@ -313,16 +355,64 @@ class PreferencesWindow:
                      ('5 hours', 300),
                      ('6 hours', 360),
                      ('12 hours', 720),
-                     ('1 day', 1440) ]:
+                     ('1 day', 1440),
+                     ('Never', -1),]:
             delay_model.append( row )
         delay = w.PComboBoxText( key = 'delay', model = delay_model )
         delay.restore_value()
         delay_box = w.LabelItem( delay, 'Delay between checking for new tweets' )
 
-        for widget in [ delay, delay_box ]:
+        tweet_count_model = w.ListStore( str, int )
+        for row in [ ('10', 10),
+                     ('15', 15),
+                     ('20', 20),
+                     ('25', 25),
+                     ('30', 30),
+                     ('40', 40),
+                     ('50', 50),
+                     ('100', 100),
+                     ('200', 200),
+                     ('500', 500),
+                     ('1000', 1000),
+                     ('Unlimited', -1) ]:
+            tweet_count_model.append( row )
+        tweet_count = w.PComboBoxText( key = 'tweet_count',
+                                       model = tweet_count_model )
+        tweet_count.connect( 'changed', self.change_refresh )
+        tweet_count.restore_value()
+        tweet_count_box = w.LabelItem( tweet_count, 'Maximum tweets to display' )
+
+        tweet_age_model = w.ListStore( str, int )
+        for row in [ ('1 hour', 1),
+                     ('2 hours', 2),
+                     ('3 hours', 3),
+                     ('6 hours', 6),
+                     ('12 hours', 12),
+                     ('1 day', 24),
+                     ('2 days', 48),
+                     ('3 days', 72),
+                     ('4 days', 96),
+                     ('1 week', 168),
+                     ('2 weeks', 336),
+                     ('1 month', 744),
+                     ('6 months', 4360),
+                     ('1 year', 8760),
+                     ('Unlimited', -1) ]:
+            tweet_age_model.append( row )
+        tweet_age = w.PComboBoxText( key = 'tweet_age',
+                                     model = tweet_age_model )
+        tweet_age.connect( 'changed', self.change_refresh )
+        tweet_age.restore_value()
+        tweet_age_box = w.LabelItem( tweet_age, 'Maximum age of tweets to display' )
+
+        for widget in [ delay, delay_box,
+                        tweet_count, tweet_count_box,
+                        tweet_age, tweet_age_box ]:
             widget.show()
 
         mainbox.pack_start( delay_box, False, False, 0 )
+        mainbox.pack_start( tweet_count_box, False, False, 0 )
+        mainbox.pack_start( tweet_age_box, False, False, 0 )
 
         mainbox.show()
         self.window.add( mainbox )
