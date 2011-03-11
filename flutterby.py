@@ -26,6 +26,7 @@ class ViewPane:
 
         self.list = w.TextView( self.parent.timelines.buffer )
         self.list.set_wrap_mode( w.WRAP_WORD )
+        self.list.set_editable( False )
         
         self.list.show()
         self.box.add_with_viewport( self.list )
@@ -97,9 +98,7 @@ class MainWindow:
         return False
 
     def refresh_event( self, event ):
-        refresher = tweets.RefreshTimelines( self,
-                                             limit = None,
-                                             loop = False )
+        refresher = tweets.RefreshTimelines( self, loop = False )
         refresher.start()
 
     def accounts_event( self, event ):
@@ -143,9 +142,7 @@ class MainWindow:
 
     def set_timelines( self, timelines ):
         self.lock( 'timelines' )
-
         self.timelines = timelines
-
         self.release( 'timelines' )
         
     def __init__( self ):
@@ -196,11 +193,7 @@ class MainWindow:
                                                   loop = False )
         def start_refresher():
             self.refresher.start()
-        def run_initial_update():
-            initial_update.start()
-            threading.Timer( 60.0 * db.get_param( 'delay' ),
-                             start_refresher ).start()
-        threading.Timer( 5.0, run_initial_update ).start()
+        threading.Timer( 5.0, start_refresher ).start()
 
 class AccountsWindow:
     def get_selected_account( self ):

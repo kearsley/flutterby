@@ -76,23 +76,42 @@ def tweet_as_text( tweet ):
     return ( 'From @%(author)s: %(text)s\nPosted %(ago)s via %(client)s\n\n' %
              tweet_as_dict( tweet ) )
 
-class Timeline( set ):
+class Timeline( list ):
     def __init__( self, account ):
         self.account = account
 
         super( Timeline, self ).__init__()
 
-    def tweet_list( self, limit = 20 ):
+        self.db_load_timeline( limit = None )
+
+    def update( self, tweets ):
+        ids = [ x.id for x in self ]
+        tweets = [ tweet for tweet in tweets if tweet.id not in ids ]
+
+        self += tweets
+
+    def load_timeline( self, limit = 20 ):
         try:
             get_save_friends( self.account )
         except t.TweepError, e:
             print e
-    
+
+        self.db_load_timeline( limit )
+
+    def db_load_timeline( self, limit = 20 ):
         tweets = db.get_tweets( account = self.account )
+        tweets.sort( key = lambda x: x.created_at,
+                     reverse = True )
+        
         if limit and len( tweets ) > limit:
             tweets = tweets[:( limit - 1 )]
         self.update( tweets )
 
+    def sorted_tweets( self ):
+        tweets = list( self )
+        tweets.sort( key = lambda x: x.created_at,
+                     reverse = True )
+        
         return tweets
     
 class TimelineSet:
@@ -102,34 +121,43 @@ class TimelineSet:
         self.buffer = w.TextBuffer()
 
     def add( self, timeline ):
-        self.timelines.add( timeline )
+        self.timelines.append( timeline )
         self.refresh()
 
     def add_list( self, li ):
         self.timelines += li
         self.refresh()
 
-    def refresh( self, limit = 20 ): 
+    def tweets( self, limit = 20 ):
         tweets = []
         for tl in self.timelines:
-            filtered = [ x for x in tl.tweet_list( limit = limit )
-                         if x.id not in [ y.id for y in tweets ] ]
-            print [ x.text for x in filtered ]
-            tweets += filtered
+            tl.load_timeline( limit = limit )
+            ids = [ x.id for x in tweets ]
+            tweets += [ x for x in tl if x.id not in ids ]
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
-        start, end = self.buffer.get_bounds()
-        self.buffer.delete( start, end )
-        start, point = self.buffer.get_bounds()
-        for tweet in tweets:
-            self.buffer.insert( point,
-                                tweet_as_text( tweet ) )
+        return tweets
+
+    def refresh( self, limit = 20 ):
+        buf = w.TextBuffer()
+        point = buf.get_end_iter()
+        for tweet in self.tweets():
+            buf.insert( point, tweet_as_text( tweet ) )
+
+        gobject.idle_add( self.update, buf )
+
+    def update( self, new_buffer ):
+        start, end = new_buffer.get_bounds()
+        self.buffer.set_text( new_buffer.get_text( start, end ) )
+        
+        return self.buffer
 
 class RefreshTimelines( threading.Thread ):
-    def __init__( self, main_window, limit = 20, loop = True ):
+    def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
         self.main_window = main_window
         self.limit = limit
         self.loop = loop
+        self.first_run = permit_first
 
         super( RefreshTimelines, self ).__init__()
 
@@ -141,9 +169,13 @@ class RefreshTimelines( threading.Thread ):
 
     def run( self ):
         gobject.idle_add( self.start_spinner )
-        self.main_window.timelines.refresh( limit = self.limit )
+        limit = self.limit
+        if self.first_run:
+            limit = None
+        self.main_window.timelines.refresh( limit = limit )
         gobject.idle_add( self.stop_spinner )
 
+        self.first_run = False
         if self.loop:
             threading.Timer( db.get_param( 'delay', 15 ) * 60.0,
                              self.run )
