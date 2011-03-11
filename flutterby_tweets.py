@@ -62,6 +62,13 @@ def get_save_friends( account, auth = None ):
     return tweets
 
 
+### Sending tweets
+
+def tweet( account, text ):
+    api = make_api( account )
+
+    return api.update_status( text )
+
 ### Formatting tweets
 
 def tweet_as_dict( tweet ):

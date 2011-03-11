@@ -33,6 +33,27 @@ class ViewPane:
         self.box.show()
 
 class EntryPane:
+    def key_event( self, widget, event ):
+        keyname = w.gdk.keyval_name( event.keyval )
+        if keyname == 'Return' and event.state == 0:
+            self.send_event( widget )
+
+    def send_event( self, widget ):
+        buf = self.text_entry.get_buffer()
+        start, end = buf.get_bounds()
+        text = buf.get_text( start, end )
+
+        text = text.strip()
+        while len( text ) and text[-1] == '\n':
+            text = text[:-1]
+
+        print text
+        tweets.tweet( db.list_accounts()[0], text )
+        
+        buf.delete( start, end )
+
+        self.parent.refresh_event( widget )
+    
     def __init__( self, parent ):
         self.parent = parent
         
@@ -41,6 +62,9 @@ class EntryPane:
         # The text field
         self.text_entry = w.TextView()
         self.text_entry.set_wrap_mode( w.WRAP_WORD )
+
+        self.text_entry.connect( 'key_release_event', self.key_event )
+        self.text_entry.set_events( w.gdk.KEY_RELEASE )
 
         self.text_entry.show()
         self.box.pack_start( self.text_entry, True, True, 2 )
