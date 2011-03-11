@@ -142,7 +142,7 @@ class ClickableTextTag( TextTag ):
             self.simple_click = True
         if event.type == gdk.MOTION_NOTIFY:
             self.simple_click = False
-        if event.type == gdk.BUTTON_RELEASE:            
+        if self.click_action and event.type == gdk.BUTTON_RELEASE:            
             return self.click_action( texttag, widget, event, point )
 
 class TweetTextBuffer( TextBuffer ):

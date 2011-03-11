@@ -4,6 +4,7 @@ import sys, string, threading, time, unicodedata
 import flutterby_db as db
 import flutterby_tweets as tweets
 import flutterby_widgets as w
+import flutterby_shorten as shorten
 
 UI = '''<ui>
   <menubar name="MenuBar">
@@ -14,6 +15,14 @@ UI = '''<ui>
       <menuitem action="Preferences" />      
       <separator />
       <menuitem action="Quit" />
+    </menu>
+    <menu action="Edit">
+      <menuitem action="Cut" />       
+      <menuitem action="Copy" />      
+      <menuitem action="Paste" /> 
+      <menuitem action="Shorten and Paste" /> 
+      <separator />
+      <menuitem action="Select All" />
     </menu>
   </menubar>
 </ui>'''
@@ -205,6 +214,18 @@ class MainWindow:
         pw = PreferencesWindow( self )
         pw.window.show()
 
+    def shorten_paste_event( self, widget ):
+        buf = self.entry.text_entry.get_buffer()
+
+        point = buf.get_iter_at_mark( buf.get_insert() )
+        clipboard = w.Clipboard()
+
+        def paste( cb, sd, it ):
+            url = shorten.shorten( sd )
+            buf.insert( point, url )
+
+        clipboard.request_text( paste, point )
+
     def setup_ui( self ):
         self.uimanager = w.UIManager()
 
@@ -218,7 +239,7 @@ class MainWindow:
                                          'Quit the Program',
                                          self.delete_event),
                                         ('Accounts', None,
-                                         '_Accounts', '<Control><Shift>A',
+                                         '_Accounts...', '<Control><Shift>A',
                                          'Show and configure accounts',
                                          self.accounts_event),
                                         ('Refresh', None,
@@ -226,10 +247,20 @@ class MainWindow:
                                          'Refresh the twitter timeline',
                                          self.refresh_event),
                                         ('Preferences', None,
-                                         '_Preferences', None,
+                                         '_Preferences...', None,
                                          'Configure the application as a whole',
                                          self.preferences_event),
                                         ('Flutterby', None, '_Flutterby'),
+                                        ('Edit', None, '_Edit'),
+                                        ('Cut', w.STOCK_CUT,),
+                                        ('Copy', w.STOCK_COPY,),
+                                        ('Paste', w.STOCK_PASTE,),
+                                        ('Shorten and Paste', w.STOCK_PASTE,
+                                         'Shorten and Paste', '<Shift><Control>V',
+                                         'Pass text through an URL shortener '
+                                         'before pasting it',
+                                         self.shorten_paste_event),
+                                        ('Select All', w.STOCK_SELECT_ALL,),
                                         ] )
 
         self.uimanager.insert_action_group( self.actiongroup, 0 )
