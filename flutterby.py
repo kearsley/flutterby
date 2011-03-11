@@ -1,4 +1,4 @@
-import gobject, gtk
+import gobject, gtk, pango
 import sys, string, threading
 
 import flutterby_db as db
@@ -8,7 +8,8 @@ import flutterby_widgets as w
 UI = '''<ui>
   <menubar name="MenuBar">
     <menu action="Flutterby">
-      <menuitem action="Accounts" />      
+      <menuitem action="Accounts" />       
+      <menuitem action="Refresh" />      
       <separator />
       <menuitem action="Preferences" />      
       <separator />
@@ -18,15 +19,22 @@ UI = '''<ui>
 </ui>'''
 
 class ViewPane:
-    def __init__( self ):
+    def __init__( self, parent ):
+        self.parent = parent
+        
         self.box = w.ScrolledWindow()
-        self.box.set_policy( hscrollbar_policy = w.POLICY_AUTOMATIC,
-                             vscrollbar_policy = w.POLICY_ALWAYS )
 
+        self.list = w.TextView( self.parent.timelines.buffer )
+        self.list.set_wrap_mode( w.WRAP_WORD )
+        
+        self.list.show()
+        self.box.add_with_viewport( self.list )
         self.box.show()
 
 class EntryPane:
-    def __init__( self ):
+    def __init__( self, parent ):
+        self.parent = parent
+        
         self.box = w.HBox( False, 5 )
 
         # The text field
@@ -88,6 +96,12 @@ class MainWindow:
         w.main_quit()
         return False
 
+    def refresh_event( self, event ):
+        refresher = tweets.RefreshTimelines( self,
+                                             limit = None,
+                                             loop = False )
+        refresher.start()
+
     def accounts_event( self, event ):
         aw = AccountsWindow()
         aw.window.show()
@@ -112,6 +126,10 @@ class MainWindow:
                                          '_Accounts', '<Control><Shift>A',
                                          'Show and configure accounts',
                                          self.accounts_event),
+                                        ('Refresh', None,
+                                         '_Refresh', '<Control>R',
+                                         'Refresh the twitter timeline',
+                                         self.refresh_event),
                                         ('Preferences', None,
                                          '_Preferences', None,
                                          'Configure the application as a whole',
@@ -133,7 +151,9 @@ class MainWindow:
     def __init__( self ):
         self.locks = { 'timelines' : threading.Lock(),
                        }
-        self.timelines = [ tweets.Timeline( acc ) for acc in db.list_accounts() ]
+        self.timelines = tweets.TimelineSet()
+        self.timelines.add_list( [ tweets.Timeline( acc )
+                                   for acc in db.list_accounts() ] )
         self.refresher = tweets.RefreshTimelines( self )
         
         self.window = w.Window( w.WINDOW_TOPLEVEL )
@@ -150,10 +170,10 @@ class MainWindow:
         mainbox = w.VBox( False, 0 )
 
         # The reading/viewing area
-        self.view = ViewPane()
+        self.view = ViewPane( self )
 
         # The editing area
-        self.entry = EntryPane()
+        self.entry = EntryPane( self )
 
         # The main menu
         self.setup_ui()
@@ -171,9 +191,16 @@ class MainWindow:
         mainbox.show()
         self.window.add( mainbox )
 
+        initial_update = tweets.RefreshTimelines( self,
+                                                  limit = None,
+                                                  loop = False )
         def start_refresher():
             self.refresher.start()
-        threading.Timer( 10.0, start_refresher ).start()
+        def run_initial_update():
+            initial_update.start()
+            threading.Timer( 60.0 * db.get_param( 'delay' ),
+                             start_refresher ).start()
+        threading.Timer( 5.0, run_initial_update ).start()
 
 class AccountsWindow:
     def get_selected_account( self ):

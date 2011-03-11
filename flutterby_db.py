@@ -118,8 +118,8 @@ def accounts_exist():
 ### Tweets
 
 def add_tweet( account, tweet ):
-    from_account = tweet.author.screen_name
-    pickled_tweet = cPickle.dumps( tweet )
+    from_account = unicode( tweet.author.screen_name )
+    pickled_tweet = unicode( cPickle.dumps( tweet ).encode( 'base64' ) )
     timestamp = time.mktime( tweet.created_at.timetuple() )
 
     return execute_sql( 'insert or replace into tweets '
@@ -162,15 +162,15 @@ def get_tweets( id = None,
                 tweet_id = None,
                 or_flag = False ):
     where_clause, values = tweet_where_clause( id, account, from_account, tweet_id,
-                                               or_flag ) 
-    tweets = execute_sql( ( 'select * from tweets %s order by timestamp desc' %
+                                               or_flag )
+    tweets = execute_sql( ( 'select * from tweets %s' %
                             where_clause ),
                           values )
 
     ret = []
     for x in tweets:
         try:
-            ret.append( cPickle.loads( str( x[4] ) ) )
+            ret.append( cPickle.loads( str( x[-1] ).decode( 'base64' ) ) )
         except:
             delete_tweets( id = x[0] )
     return ret
