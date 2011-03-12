@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
-import flutterby
+import flutterby.flutterby as flutterby
+
+print dir( flutterby )
 
 flutterby.main()
