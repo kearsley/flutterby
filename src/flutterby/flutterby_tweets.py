@@ -26,17 +26,20 @@ def authenticate( account ):
             print 'Error! Failed to get request token.'
             return None
 
-        verifier = w.prompt_dialog( 'Please enter the PIN provided by Twitter.',
-                                    'PIN' )
+        return auth
 
-        try:
-            auth.get_access_token( verifier )
-        except tweepy.TweepError:
-            print 'Error! Failed to get access token.'
-            return None
+    return auth
 
-        db.set_account( account, auth.access_token.key, auth.access_token.secret )
-
+def authenticate2( account, verifier, auth = None ):
+    if not auth:
+        auth = authenticate( account )
+    try:
+        auth.get_access_token( verifier )
+    except t.TweepError:
+        print 'Error! Failed to get access token.'
+        return None
+    db.set_account( account, auth.access_token.key, auth.access_token.secret )
+    
     return auth
 
 def make_api( account, auth = None ):

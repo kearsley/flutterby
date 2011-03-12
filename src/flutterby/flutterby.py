@@ -1,6 +1,8 @@
 import gobject, gtk, pango
 import os, sys, string, threading, time, unicodedata
 
+print sys.path
+
 import flutterby_db as db
 import flutterby_resources as res
 import flutterby_tweets as tweets
@@ -398,15 +400,86 @@ class AccountsWindow:
         for widget in [ self.delete_button, ]:
             widget.set_sensitive( sensitive )
 
-    def add_event( self, widget ):
-        account = w.prompt_dialog( 'What is the name of the Twitter account which '
-                                   'you would like to add?',
-                                   'Account name' )
-        tweets.authenticate( account )
+    def make_account_dialog( self ):
+        ad = w.PWindow( 'add_account' )
+
+        grid = w.Table( rows = 2, columns = 3 )
+
+        stage1_label = w.Label( 'Enter the account name:' )
+        stage1_label.set_alignment( 0, 0.5 )
+        stage1_label.show()
+
+        stage1_entry = w.Entry()
+        stage1_entry.show()
+
+        stage1_button = w.Button( 'Request a PIN' )
+        stage1_button.set_sensitive( False )
+        stage1_button.show()
         
-        self.accounts.refresh_model()
-        return account
-    
+        stage2_label = w.Label( 'Enter the PIN given to you by Twitter:' )
+        stage2_label.set_alignment( 0, 0.5 )
+        stage2_label.show()
+
+        stage2_entry = w.Entry()
+        stage2_entry.set_sensitive( False )
+        stage2_entry.show()
+        
+        stage2_button = w.Button( 'Register account' )
+        stage2_button.set_sensitive( False )
+        stage2_button.show()
+
+        def stage1_entry_changed( widget ):
+            if stage1_entry.get_text_length() > 0:
+                stage1_button.set_sensitive( True )
+            else:
+                stage1_button.set_sensitive( False )                
+        stage1_entry.connect( 'changed', stage1_entry_changed )
+
+        def stage1_button_clicked( widget ):
+            self.auth = tweets.authenticate( stage1_entry.get_text() )
+
+            for widget in (stage1_label, stage1_entry, stage1_button,):
+                widget.set_sensitive( False )
+            for widget in (stage2_label, stage2_entry,):
+                widget.set_sensitive( True )
+
+            return True
+        stage1_button.connect( 'clicked', stage1_button_clicked )
+
+        def stage2_entry_changed( widget ):
+            if stage2_entry.get_text_length() > 0:
+                stage2_button.set_sensitive( True )
+            else:
+                stage2_button.set_sensitive( False )                
+        stage2_entry.connect( 'changed', stage2_entry_changed )
+
+        def stage2_button_clicked( widget ):
+            tweets.authenticate2( stage1_entry.get_text(),
+                                  stage2_entry.get_text(),
+                                  self.auth )
+
+            self.accounts.refresh_model()
+            ad.destroy()
+            return True
+        stage2_button.connect( 'clicked', stage2_button_clicked )
+
+        grid.attach( stage1_label, 0, 1, 0, 1, w.FILL, w.FILL )
+        grid.attach( stage1_entry, 1, 2, 0, 1, w.FILL, w.FILL )
+        grid.attach( stage1_button, 2, 3, 0, 1, w.FILL, w.FILL )
+        grid.attach( stage2_label, 0, 1, 1, 2, w.FILL, w.FILL )
+        grid.attach( stage2_entry, 1, 2, 1, 2, w.FILL, w.FILL )
+        grid.attach( stage2_button, 2, 3, 1, 2, w.FILL, w.FILL )
+
+        grid.show()
+
+        ad.add( grid )
+        ad.show()
+
+        return ad
+
+    def add_event( self, widget ):
+        ad = self.make_account_dialog()
+
     def delete_event( self, widget ):
         account = self.get_selected_account()
         if not account:
