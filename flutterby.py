@@ -252,6 +252,34 @@ class MainWindow:
         pw = PreferencesWindow( self )
         pw.window.show()
 
+    def cut_event( self, widget ):
+        foc = self.window.get_focus()
+        
+
+        if not ( hasattr( foc, 'get_editable' ) and foc.get_editable() ):
+            return False
+
+        foc.do_cut_clipboard( foc )
+        return True
+
+    def copy_event( self, widget ):
+        foc = self.window.get_focus()
+
+        if not ( hasattr( foc, 'get_editable' ) and foc.get_editable() ):
+            return False
+
+        foc.do_copy_clipboard( foc )
+        return True
+
+    def paste_event( self, widget ):
+        foc = self.window.get_focus()
+
+        if not ( hasattr( foc, 'get_editable' ) and foc.get_editable() ):
+            return False
+
+        foc.do_paste_clipboard( foc )
+        return True
+
     def shorten_paste_event( self, widget ):
         buf = self.entry().text_entry.get_buffer()
 
@@ -290,9 +318,18 @@ class MainWindow:
                                          self.preferences_event),
                                         ('Flutterby', None, '_Flutterby'),
                                         ('Edit', None, '_Edit'),
-                                        ('Cut', w.STOCK_CUT,),
-                                        ('Copy', w.STOCK_COPY,),
-                                        ('Paste', w.STOCK_PASTE,),
+                                        ('Cut', w.STOCK_CUT,
+                                         'Cut', None,
+                                         'Cut text',
+                                         self.cut_event),
+                                        ('Copy', w.STOCK_COPY,
+                                         'Copy', None,
+                                         'Copy text',
+                                         self.copy_event),
+                                        ('Paste', w.STOCK_PASTE,
+                                         'Paste', None,
+                                         'Paste text',
+                                         self.paste_event),
                                         ('Shorten and Paste', w.STOCK_PASTE,
                                          'Shorten and Paste', '<Shift><Control>V',
                                          'Pass text through an URL shortener '
