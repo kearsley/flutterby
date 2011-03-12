@@ -1,16 +1,6 @@
 import gobject, gtk, pango
 import os, sys, string, threading, time, unicodedata
 
-path = sys.argv[0]
-if os.path.islink( path ):
-    path = os.path.realpath( path )
-path = os.path.dirname( os.path.abspath( path ) )
-print path
-
-sys.path.append( path )
-
-print sys.path
-
 import flutterby_db as db
 import flutterby_resources as res
 import flutterby_tweets as tweets

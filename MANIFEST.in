@@ -1,1 +1,2 @@
-recursive-include src/ *
+include launch_flutterby
+recursive-include flutterby/ *
