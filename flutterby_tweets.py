@@ -72,7 +72,7 @@ def tweet( account, text ):
         api.update_status( text )
         return True
     except t.TweepError:
-        return None
+        return False
 
 ### Formatting tweets
 
@@ -179,17 +179,24 @@ class Timeline( list ):
 
         self.db_load_timeline( limit = None )
 
+    def __repr__( self ):
+        return 'Timeline(%s)' % self.account
+
+    def __str__( self ):
+        return repr( self )
+
     def update( self, tweets ):
         ids = [ x.id for x in self ]
         tweets = [ tweet for tweet in tweets if tweet.id not in ids ]
 
         self += tweets
 
-    def load_timeline( self, limit = 20 ):
-        try:
-            get_save_friends( self.account )
-        except t.TweepError, e:
-            print e
+    def load_timeline( self, limit = 20, network = True ):
+        if network:
+            try:
+                get_save_friends( self.account )
+            except t.TweepError, e:
+                print e
 
         self.db_load_timeline( limit )
 
@@ -216,6 +223,12 @@ class TimelineSet:
         self.buffer = self.make_buffer()
         self.listeners = []
 
+    def __repr__( self ):
+        return 'TimelineSet(%s)' % ', '.join( [ str( t ) for t in self.timelines ] )
+
+    def __str__( self ):
+        return repr( self )
+
     def make_buffer( self ):
         buf = w.TweetTextBuffer()
 
@@ -223,7 +236,6 @@ class TimelineSet:
 
     def add( self, timeline ):
         self.timelines.append( timeline )
-        self.refresh()
 
     def add_list( self, li ):
         self.timelines += li
@@ -237,10 +249,11 @@ class TimelineSet:
         for l in self.listeners:
             l.notify( message )
 
-    def tweets( self, limit = 20 ):
+    def tweets( self, limit = 20, network = True ):
         tweets = []
         for tl in self.timelines:
-            tl.load_timeline( limit = limit )
+            tl.load_timeline( limit = limit,
+                              network = network )
             ids = [ x.id for x in tweets ]
             tweets += [ x for x in tl if x.id not in ids ]
         tweets.sort( key = lambda x: x.created_at,
@@ -260,10 +273,12 @@ class TimelineSet:
         
         return tweets
 
-    def refresh( self, limit = 20 ):
+    def refresh( self, limit = 20, network = True ):
         print 'Refreshing'
         
-        tweets = [ tweet_as_tag_list( tweet ) for tweet in self.tweets() ]
+        tweets = [ tweet_as_tag_list( tweet )
+                   for tweet in self.tweets( limit = limit,
+                                             network = network ) ]
         buf = w.TweetTextBuffer()
         count = 0
         point = buf.get_end_iter()
@@ -291,19 +306,25 @@ class RefreshTimelines( threading.Thread ):
 
         super( RefreshTimelines, self ).__init__()
 
-    def start_spinner( self ):
-        self.main_window.entry.start_spinner()
+    def start_spinner( self, account ):
+        for key, tab in self.main_window.tab_items.items():
+            if tab[ 'account' ] == account:
+                tab[ 'entry' ].start_spinner()
 
-    def stop_spinner( self ):
-        self.main_window.entry.stop_spinner()
+    def stop_spinner( self, account ):
+        for key, tab in self.main_window.tab_items.items():
+            if tab[ 'account' ] == account:
+                tab[ 'entry' ].stop_spinner()
 
     def run( self ):
-        gobject.idle_add( self.start_spinner )
         limit = self.limit
         if self.first_run:
             limit = None
-        self.main_window.timelines.refresh( limit = limit )
-        gobject.idle_add( self.stop_spinner )
+        for timelines, account in [ ( v[ 'timelines' ], v[ 'account' ] )
+                                    for v in self.main_window.tab_items.values() ]:
+            gobject.idle_add( self.start_spinner, account )
+            timelines.refresh( limit = limit )
+            gobject.idle_add( self.stop_spinner, account )
 
         self.first_run = False
         if self.loop and db.get_param( 'delay' ) > 0:

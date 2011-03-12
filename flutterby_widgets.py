@@ -56,6 +56,25 @@ class PComboBoxText( PComboBox ):
         self.pack_start( self.cell )
         self.add_attribute( self.cell, 'text', 0 )
 
+class PNotebook( Notebook ):
+    def __init__( self, key ):
+        super( PNotebook, self ).__init__()
+
+        self.db_key = key
+        self.restored = False
+
+        self.connect( 'switch-page', self.tab_switch_event )
+
+    def restore_tab( self ):
+        self.set_current_page( db.get_param( self.db_key + ':current_tab',
+                                             self.get_current_page() ) )
+        self.restored = True
+
+    def tab_switch_event( self, widget, page, page_num ):
+        if not self.restored:
+            return False
+        db.set_param( self.db_key + ':current_tab', page_num )
+
 class PWindow( Window ):
     def __init__( self, key, type = WINDOW_TOPLEVEL ):
         super( PWindow, self ).__init__( type )

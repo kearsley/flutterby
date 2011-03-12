@@ -28,20 +28,22 @@ UI = '''<ui>
 </ui>'''
 
 TWEET_LENGTH = 140
-TYPING_DELAY = 0.5
+TYPING_DELAY = -1
 
 class ViewPane:
-    def __init__( self, parent ):
+    def __init__( self, parent, tab, timelines ):
         self.simple_click = False
         self.parent = parent
+        self.tab = tab
+        self.timelines = timelines
         
         self.box = w.ScrolledWindow()
 
-        self.list = w.TextView( self.parent.timelines.buffer )
+        self.list = w.TextView( self.timelines.buffer )
         self.list.set_wrap_mode( w.WRAP_WORD )
         self.list.set_editable( False )
 
-        self.parent.timelines.add_listener( self )
+        self.timelines.add_listener( self )
         
         self.list.show()
         self.box.add_with_viewport( self.list )
@@ -49,12 +51,13 @@ class ViewPane:
 
     def notify( self, message ):
         if message == 'timeline buffer updated':
-            self.list.set_buffer( self.parent.timelines.buffer )
+            self.list.set_buffer( self.timelines.buffer )
 
 class EntryPane:
-    def __init__( self, parent ):
+    def __init__( self, parent, tab ):
         self.last_changed = 0
         self.parent = parent
+        self.tab = tab
         
         self.box = w.HBox( False, 5 )
 
@@ -110,6 +113,8 @@ class EntryPane:
     def send_event( self, widget, by_typing = False ):
         self.start_spinner()
 
+        account = self.parent.tab_items[ self.tab ][ 'account' ]
+
         buf = self.text_entry.get_buffer()
         point = buf.get_iter_at_mark( buf.get_insert() )
         if by_typing:
@@ -122,8 +127,8 @@ class EntryPane:
         while len( text ) and text[-1] == '\n':
             text = text[:-1]
 
-        print text
-        if tweets.tweet( db.list_accounts()[0], text ):
+        print account, text
+        if tweets.tweet( account, text ):
             buf.delete( start, end )
             self.parent.refresh_event( widget )
             self.stop_spinner()
@@ -141,9 +146,6 @@ class MainWindow:
     def __init__( self, wname ):
         self.locks = { 'timelines' : threading.Lock(),
                        }
-        self.timelines = tweets.TimelineSet()
-        self.timelines.add_list( [ tweets.Timeline( acc )
-                                   for acc in db.list_accounts() ] )
         self.refresher = tweets.RefreshTimelines( self )
         
         self.window = w.PWindow( wname, w.WINDOW_TOPLEVEL )
@@ -151,38 +153,73 @@ class MainWindow:
         self.window.set_icon_from_file( 'resources/img/flutterby_icon.png' )
         self.window.connect( 'delete_event', self.delete_event )
 
-        mainbox = w.VBox( False, 0 )
+        windowbox = w.VBox( False, 0 )        
 
-        # The reading/viewing area
-        self.view = ViewPane( self )
+        self.tabs = w.PNotebook( 'main_tabs' )
+        
+        self.tab_items = {}
 
-        # The editing area
-        self.entry = EntryPane( self )
+        for account in db.list_accounts():
+            tab_item = { 'account' : account }
+            mainbox = w.VBox( False, 0 )
+
+            timelines = tweets.TimelineSet( [] )
+            timelines.add( tweets.Timeline( account ) )
+            tab_item[ 'timelines' ] = timelines
+            
+            # The reading/viewing area
+            view = ViewPane( self, self.tabs.get_n_pages(), timelines )
+            tab_item[ 'view' ] = view
+
+            # The editing area
+            entry = EntryPane( self, self.tabs.get_n_pages() )
+            tab_item[ 'entry' ] = entry
+
+            mainbox.pack_start( view.box, True, True, 0 )
+
+            separator = w.HSeparator()
+            separator.show()
+            mainbox.pack_start( separator, False, True, 2 )
+
+            mainbox.pack_start( entry.box, False, False, 2 )
+
+            timelines.refresh( limit = None, network = False )
+            mainbox.show() 
+
+            self.tab_items[ self.tabs.get_n_pages() ] = tab_item
+
+            self.tabs.append_page( mainbox, w.Label( account ) )
+
+        if len( self.tab_items.keys() ) <= 1:
+            self.tab_items.set_show_tabs( False )
 
         # The main menu
         self.setup_ui()
         self.menubar = self.uimanager.get_widget( '/MenuBar' )
-        
-        mainbox.pack_start( self.menubar, False, True, 0 )
-        mainbox.pack_start( self.view.box, True, True, 0 )
+        windowbox.pack_start( self.menubar, False, True, 0 )
 
-        separator = w.HSeparator()
-        separator.show()
-        mainbox.pack_start( separator, False, True, 2 )
-        
-        mainbox.pack_start( self.entry.box, False, False, 2 )
+        self.tabs.restore_tab()
+        self.tabs.show()
+        windowbox.pack_start( self.tabs, True, True, 0 )
+        windowbox.show()
+        self.window.add( windowbox )
 
-        mainbox.show()
-        self.window.add( mainbox )
+        current_page = self.tabs.get_current_page()
+        self.tab_items[ current_page ][ 'entry' ].text_entry.grab_focus()
 
-        self.entry.text_entry.grab_focus()
-
-        initial_update = tweets.RefreshTimelines( self,
-                                                  limit = None,
-                                                  loop = False )
         def start_refresher():
             self.refresher.start()
-        threading.Timer( 5.0, start_refresher ).start()
+        threading.Timer( 4.0, start_refresher ).start()
+
+    def current_page_item( self, key ):
+        current_page = self.tabs.get_current_page()
+        return self.tab_items[ current_page ][ key ]        
+
+    def entry( self ):
+        return self.current_page_item( 'entry' )
+
+    def view( self ):
+        return self.current_page_item( 'view' )
 
     def get_lock( self, lock ):
         l = self.locks.get( lock, None )
@@ -215,7 +252,7 @@ class MainWindow:
         pw.window.show()
 
     def shorten_paste_event( self, widget ):
-        buf = self.entry.text_entry.get_buffer()
+        buf = self.entry().text_entry.get_buffer()
 
         point = buf.get_iter_at_mark( buf.get_insert() )
         clipboard = w.Clipboard()
@@ -273,41 +310,6 @@ class MainWindow:
         self.release( 'timelines' )        
 
 class AccountsWindow:
-    def get_selected_account( self ):
-        model, row = self.accounts.get_selection().get_selected()
-        if not row:
-            return None
-
-        return model.get_value( row, 0 )
-    
-    def selection_changed( self, widget ):
-        if not self.get_selected_account():
-            sensitive = False
-        else:
-            sensitive = True
-        for widget in [ self.delete_button, ]:
-            widget.set_sensitive( sensitive )
-
-    def add_event( self, widget ):
-        account = w.prompt_dialog( 'What is the name of the Twitter account which '
-                                   'you would like to add?',
-                                   'Account name' )
-        tweets.authenticate( account )
-        
-        self.accounts.refresh_model()
-        return account
-    
-    def delete_event( self, widget ):
-        account = self.get_selected_account()
-        if not account:
-            return
-
-        db.delete_account( account )
-        self.accounts.refresh_model()
-    
-    def edit_event( self, widget ):
-        pass
-    
     def __init__( self, parent ):
         self.parent = parent
         
@@ -347,6 +349,41 @@ class AccountsWindow:
         mainbox.show()
         self.window.add( mainbox )
 
+    def get_selected_account( self ):
+        model, row = self.accounts.get_selection().get_selected()
+        if not row:
+            return None
+
+        return model.get_value( row, 0 )
+    
+    def selection_changed( self, widget ):
+        if not self.get_selected_account():
+            sensitive = False
+        else:
+            sensitive = True
+        for widget in [ self.delete_button, ]:
+            widget.set_sensitive( sensitive )
+
+    def add_event( self, widget ):
+        account = w.prompt_dialog( 'What is the name of the Twitter account which '
+                                   'you would like to add?',
+                                   'Account name' )
+        tweets.authenticate( account )
+        
+        self.accounts.refresh_model()
+        return account
+    
+    def delete_event( self, widget ):
+        account = self.get_selected_account()
+        if not account:
+            return
+
+        db.delete_account( account )
+        self.accounts.refresh_model()
+    
+    def edit_event( self, widget ):
+        pass
+    
 class PreferencesWindow:
     def change_refresh( self, widget ):
         self.parent.refresh_event( widget )
