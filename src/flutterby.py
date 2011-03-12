@@ -1,7 +1,18 @@
 import gobject, gtk, pango
-import sys, string, threading, time, unicodedata
+import os, sys, string, threading, time, unicodedata
+
+path = sys.argv[0]
+if os.path.islink( path ):
+    path = os.path.realpath( path )
+path = os.path.dirname( os.path.abspath( path ) )
+print path
+
+sys.path.append( path )
+
+print sys.path
 
 import flutterby_db as db
+import flutterby_resources as res
 import flutterby_tweets as tweets
 import flutterby_widgets as w
 import flutterby_shorten as shorten
@@ -149,7 +160,7 @@ class MainWindow:
         
         self.window = w.PWindow( wname, w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Flutterby' )
-        self.window.set_icon_from_file( 'resources/img/flutterby_icon.png' )
+        self.window.set_icon_from_file( res.image_path( 'flutterby_icon' ) )
         self.window.connect( 'delete_event', self.delete_event )
 
         windowbox = w.VBox( False, 0 )        

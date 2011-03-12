@@ -1,20 +1,5 @@
 #!/usr/bin/python
 
-import os, sys
-
-def determine_path():
-    root = __file__
-    if os.path.islink (root):
-        root = os.path.realpath (root)
-    return os.path.dirname (os.path.abspath (root))
-
-def add_paths():
-    sys.path += [ os.path.join( determine_path(), path ) for path in ('', 'src',) ]
-        
-    print sys.path
-
-add_paths()
-
 import flutterby
 
 flutterby.main()
