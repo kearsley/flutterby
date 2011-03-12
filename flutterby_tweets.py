@@ -147,7 +147,11 @@ def tweet_as_tag_list( tweet ):
     tmp = tag_blob( ref_re, 'username' )
     tmp = tag_blob( hashtag_re, 'hashtag' )
 
-    ret += tmp
+    tmp2 = []
+    for text, tag in tmp:
+        tmp2.append( (text, [tag, 'tweet']) )
+
+    ret += tmp2
 
     if db.get_param( 'show_client' ):
         ret += [ ('\nPosted ', 'time'),

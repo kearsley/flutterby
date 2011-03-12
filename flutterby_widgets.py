@@ -147,12 +147,18 @@ class DBTreeView( TreeView ):
             self.db_model.append( row )
 
 class ClickableTextTag( TextTag ):
-    def __init__( self, click_action = None, name = None ):
+    def __init__( self,
+                  click_action = None,
+                  double_click_action = None,
+                  triple_click_action = None,
+                  name = None ):
         self.simple_click = False
         
         super( ClickableTextTag, self ).__init__( name )
 
         self.click_action = click_action
+        self.double_click_action = double_click_action
+        self.triple_click_action = triple_click_action
 
         self.connect( 'event', self.click_event )
 
@@ -161,8 +167,13 @@ class ClickableTextTag( TextTag ):
             self.simple_click = True
         if event.type == gdk.MOTION_NOTIFY:
             self.simple_click = False
-        if self.click_action and event.type == gdk.BUTTON_RELEASE:            
-            return self.click_action( texttag, widget, event, point )
+        if self.click_action and event.type == gdk.BUTTON_RELEASE:
+            if self.simple_click and event.button == 1:
+                return self.click_action( texttag, widget, event, point )
+        if self.double_click_action and event.type == gdk._2BUTTON_PRESS:
+            return self.double_click_action( texttag, widget, event, point )
+        if self.triple_click_action and event.type == gdk._3BUTTON_PRESS:
+            return self.double_click_action( texttag, widget, event, point )
 
 class TweetTextBuffer( TextBuffer ):
     def __init__( self, table = None ):
@@ -198,7 +209,8 @@ class TweetTextBuffer( TextBuffer ):
                   ('time',
                    { 'foreground' : '#666666', },
                    None),
-                  ('tweet', {}, None)]:
+                  ('tweet', {},
+                   { 'double_click_action' : self.tweet_double_click } )]:
             if not actions:
                 actions = {}
             tag = ClickableTextTag( name = tag, **actions )
@@ -210,7 +222,30 @@ class TweetTextBuffer( TextBuffer ):
         for text, tag in tag_list:
             if not tag:
                 tag = 'none'
-            self.insert_with_tags_by_name( point, text, tag )
+            if type( tag ) in (list, tuple, set):
+                tag = [ not t and 'none' or t for t in tag ]
+                self.insert_with_tags_by_name( point, text, *tag )
+            else:
+                self.insert_with_tags_by_name( point, text, tag )
+
+    def tweet_double_click( self, texttag, widget, event, point ):
+        print 'Double Click', widget
+        start = point.copy()
+
+        flag = start.backward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        flag = point.forward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        tweet = self.get_slice( start, point ) 
+        print tweet
+
+        self.select_range( start, point )
+
+        return True
 
     def url_click( self, texttag, widget, event, point ):
         start = point.copy()
@@ -226,6 +261,7 @@ class TweetTextBuffer( TextBuffer ):
         url = self.get_slice( start, point )
 
         webbrowser.open( url )
+        return True
 
 def prompt_dialog( message, label ):
     def responseToDialog(entry, dialog, response):
