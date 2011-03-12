@@ -205,7 +205,8 @@ class MainWindow:
         self.window.add( windowbox )
 
         current_page = self.tabs.get_current_page()
-        self.tab_items[ current_page ][ 'entry' ].text_entry.grab_focus()
+        if current_page >= 0:
+            self.tab_items[ current_page ][ 'entry' ].text_entry.grab_focus()
 
         def start_refresher():
             self.refresher.start()
