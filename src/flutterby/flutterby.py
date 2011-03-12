@@ -191,7 +191,7 @@ class MainWindow:
             self.tabs.append_page( mainbox, w.Label( account ) )
 
         if len( self.tab_items.keys() ) <= 1:
-            self.tab_items.set_show_tabs( False )
+            self.tabs.set_show_tabs( False )
 
         # The main menu
         self.setup_ui()
