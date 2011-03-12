@@ -1,4 +1,4 @@
-import time
+import os, sys, time
 
 SECOND = 1
 MINUTE = 60 * SECOND
@@ -42,3 +42,9 @@ def ago( timestamp ):
     
 def pluralize( word ):
     return word + 's'
+
+def determine_path():
+    root = __file__
+    if os.path.islink (root):
+        root = os.path.realpath (root)
+    return os.path.dirname (os.path.abspath (root))
