@@ -1,0 +1,10 @@
+A Twitter client written in Python/PyGTK
+
+It is currently under basic development, but has the following features:
+
+ * Authentication via OAuth
+ * Watching multiple Twitter accounts
+ * Highlighting of tweets
+ * Clickable URLs
+ * The option to shorten an URL in the clipboard before pasting.
+ 
