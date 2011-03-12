@@ -210,7 +210,7 @@ class TweetTextBuffer( TextBuffer ):
                    { 'foreground' : '#666666', },
                    None),
                   ('tweet', {},
-                   { 'double_click_action' : self.tweet_double_click } )]:
+                   { 'double_click_action' : self.tweet_select } )]:
             if not actions:
                 actions = {}
             tag = ClickableTextTag( name = tag, **actions )
@@ -228,8 +228,7 @@ class TweetTextBuffer( TextBuffer ):
             else:
                 self.insert_with_tags_by_name( point, text, tag )
 
-    def tweet_double_click( self, texttag, widget, event, point ):
-        print 'Double Click', widget
+    def tweet_select( self, texttag, widget, event, point ):
         start = point.copy()
 
         flag = start.backward_to_tag_toggle( texttag )
@@ -239,9 +238,6 @@ class TweetTextBuffer( TextBuffer ):
         flag = point.forward_to_tag_toggle( texttag )
         if not flag:
             return False
-
-        tweet = self.get_slice( start, point ) 
-        print tweet
 
         self.select_range( start, point )
 

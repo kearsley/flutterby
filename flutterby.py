@@ -6,27 +6,6 @@ import flutterby_tweets as tweets
 import flutterby_widgets as w
 import flutterby_shorten as shorten
 
-UI = '''<ui>
-  <menubar name="MenuBar">
-    <menu action="Flutterby">
-      <menuitem action="Accounts" />       
-      <menuitem action="Refresh" />      
-      <separator />
-      <menuitem action="Preferences" />      
-      <separator />
-      <menuitem action="Quit" />
-    </menu>
-    <menu action="Edit">
-      <menuitem action="Cut" />       
-      <menuitem action="Copy" />      
-      <menuitem action="Paste" /> 
-      <menuitem action="Shorten and Paste" /> 
-      <separator />
-      <menuitem action="Select All" />
-    </menu>
-  </menubar>
-</ui>'''
-
 TWEET_LENGTH = 140
 TYPING_DELAY = -1
 
@@ -142,6 +121,25 @@ class EntryPane:
     def stop_spinner( self ):
         self.spinner.stop()
         self.spinner.set_sensitive( False )        
+
+UI = '''<ui>
+  <menubar name="MenuBar">
+    <menu action="Flutterby">
+      <menuitem action="Accounts" />       
+      <menuitem action="Refresh" />      
+      <separator />
+      <menuitem action="Preferences" />      
+      <separator />
+      <menuitem action="Quit" />
+    </menu>
+    <menu action="Edit">
+      <menuitem action="Cut" />       
+      <menuitem action="Copy" />      
+      <menuitem action="Paste" /> 
+      <menuitem action="Shorten and Paste" /> 
+    </menu>
+  </menubar>
+</ui>'''
 
 class MainWindow:
     def __init__( self, wname ):
@@ -265,9 +263,6 @@ class MainWindow:
     def copy_event( self, widget ):
         foc = self.window.get_focus()
 
-        if not ( hasattr( foc, 'get_editable' ) and foc.get_editable() ):
-            return False
-
         foc.do_copy_clipboard( foc )
         return True
 
@@ -335,7 +330,6 @@ class MainWindow:
                                          'Pass text through an URL shortener '
                                          'before pasting it',
                                          self.shorten_paste_event),
-                                        ('Select All', w.STOCK_SELECT_ALL,),
                                         ] )
 
         self.uimanager.insert_action_group( self.actiongroup, 0 )
