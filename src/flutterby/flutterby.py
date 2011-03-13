@@ -589,9 +589,17 @@ class PreferencesWindow:
         grid.show()
         mainbox.pack_start( grid, False, True, 0 )
 
+        separator = w.HSeparator()
+        separator.show()
+        mainbox.pack_start( separator, False, True, 2 )
+
+        show_retweets = w.PCheckButton( 'show_retweets', 'Show retweets' )
+        show_retweets.connect( 'toggled', self.change_refresh )
+        show_retweets.show()
+        mainbox.pack_start( show_retweets, False, False, 0 )
+
         show_client = w.PCheckButton( 'show_client', 'Show posting client' )
         show_client.connect( 'toggled', self.change_refresh )
-
         show_client.show()
         mainbox.pack_start( show_client, False, False, 0 )
 

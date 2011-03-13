@@ -49,6 +49,8 @@ def make_api( account, auth = None ):
         auth = authenticate( account )
     return t.API( auth )
 
+### Timelines
+
 def get_public( account, auth = None ):
     api = make_api( account, auth )
 
@@ -63,10 +65,45 @@ def get_save_friends( account, auth = None ):
     tweets = get_friends( account, auth )
 
     for tweet in tweets:
-        if not db.tweet_exists( tweet_id = tweet.id ):
+        if not len( db.get_tweets( tweet_id = tweet.id,
+                                   account = account ) ):
             db.add_tweet( account, tweet )
     return tweets
 
+def get_home( account, auth = None ):
+    api = make_api( account, auth )
+
+    return api.home_timeline()
+
+def get_save_home( account, auth = None ):
+    tweets = get_home( account, auth )
+
+    for tweet in tweets:
+        if not len( db.get_tweets( tweet_id = tweet.id,
+                                   account = account ) ):
+            db.add_tweet( account, tweet )
+    return tweets
+
+### Followers/Following
+
+def get_following_ids( account, auth = None ):
+    api = make_api( account, auth )
+
+    user = api.me()
+    return api.friends_ids( user.id )
+
+def get_following( account, auth = None ):
+    return [ api.get_user( id ) for id in get_following_ids( account, auth ) ]
+
+def get_follower_ids( account, auth = None ):
+    api = make_api( account, auth )
+
+    user = api.me()
+    return api.followers_ids( user.id )
+
+def get_followers( account, auth = None ):
+    api = make_api( account, auth )
+    return api.followers()
 
 ### Sending tweets
 
@@ -213,7 +250,7 @@ class Timeline( list ):
     def load_timeline( self, limit = 20, network = True ):
         if network:
             try:
-                get_save_friends( self.account )
+                get_save_home( self.account )
             except t.TweepError, e:
                 print e
 
@@ -278,6 +315,10 @@ class TimelineSet:
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
 
+        if not db.get_param( 'show_retweets' ):
+            tweets = [ tweet for tweet in tweets
+                       if not hasattr( tweet, 'retweeted_status' ) ]
+        
         tweet_count = db.get_param( 'tweet_count' )
         if tweet_count > 0 and len( tweets ) > tweet_count:
             tweets = tweets[:( tweet_count - 1 )]
@@ -289,7 +330,7 @@ class TimelineSet:
                        if ( ( time.mktime( time.gmtime() ) -
                               time.mktime( tweet.created_at.timetuple() ) ) <
                             tweet_age ) ]
-        
+
         return tweets
 
     def refresh( self, limit = 20, network = True ):
