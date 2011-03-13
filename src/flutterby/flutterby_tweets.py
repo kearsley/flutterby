@@ -343,15 +343,10 @@ class TimelineSet:
             tl.load_timeline( limit = limit,
                               network = network )
             new_tweets += [ x for x in tl if x.id not in ids ]
-        print '\n'.join( [ tweet_as_text( tweet ) for tweet in new_tweets ] )
 
-        if NOTIFICATION:
-            for tweet in sorted( new_tweets,
-                                 key = lambda x: x.created_at,
-                                 reverse = False ):
-                n = pynotify.Notification( tweet.author.screen_name,
-                                           tweet.text )
-                n.show()
+        if len( new_tweets ):
+            print '\n'.join( [ tweet_as_text( tweet ) for tweet in new_tweets ] )
+
         tweets += new_tweets
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
@@ -383,6 +378,19 @@ class TimelineSet:
                 
             urllib.urlretrieve( url, filename )
             tweet.author.profile_image_file = filename
+
+        if NOTIFICATION and db.get_param( 'new_tweet_notify', True ):
+            for tweet in sorted( new_tweets,
+                                 key = lambda x: x.created_at,
+                                 reverse = False ):
+                url, filename = author_image_filename( tweet.author )
+                uri = None
+                if os.path.exists( filename ):
+                    uri = 'file://%s' % filename
+                n = pynotify.Notification( tweet.author.screen_name,
+                                           tweet.text,
+                                           uri )
+                n.show()
             
         return tweets
 
