@@ -633,6 +633,15 @@ class PreferencesWindow:
         show_client.show()
         mainbox.pack_start( show_client, False, False, 0 )
 
+        separator = w.HSeparator()
+        separator.show()
+        mainbox.pack_start( separator, False, True, 2 )
+
+        notify_new = w.PCheckButton( 'new_tweet_notify',
+                                     'Display notifications on new tweets' )
+        notify_new.show()
+        mainbox.pack_start( notify_new, False, False, 0 )
+
         mainbox.show()
         self.window.add( mainbox )
 
