@@ -128,7 +128,6 @@ UI = '''<ui>
   <menubar name="MenuBar">
     <menu action="Flutterby">
       <menuitem action="Accounts" />       
-      <menuitem action="Following" />       
       <menuitem action="Refresh" />      
       <separator />
       <menuitem action="Preferences" />      
