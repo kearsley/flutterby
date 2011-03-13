@@ -1,5 +1,7 @@
 import gobject, gtk, pango
-import os, sys, string, threading, time, unicodedata
+import os, re, sys, string, threading, time, unicodedata
+
+from flutterby_functions import *
 
 import flutterby_db as db
 import flutterby_resources as res
@@ -24,12 +26,77 @@ class ViewPane:
         self.timelines.new_buffer()
         self.list.set_wrap_mode( w.WRAP_WORD )
         self.list.set_editable( False )
+        self.list.connect_after( 'populate-popup', self.popup_menu_event )
 
         self.timelines.add_listener( self )
         
         self.list.show()
         self.box.add_with_viewport( self.list )
         self.box.show()
+
+    def popup_menu_event( self, widget, menu ):
+        id = self.list.get_buffer().right_click_id
+        tag = self.list.get_buffer().right_click_tag
+        point = self.list.get_buffer().right_click_point
+        text = self.list.get_buffer().right_click_text
+
+        tag_name = tag.get_property( 'name' )
+        tag_type = None
+        if is_custom_tag( tag_name ):
+            tag_type = custom_tag_name( tag_name )
+
+        poster_name = None
+        if tag_type == 'from':
+            poster_name = custom_tag_payload( tag_name )
+
+        pre_separator = w.SeparatorMenuItem()
+        
+        reply = w.MenuItem( 'Reply' )
+        reply.connect( 'activate', self.reply_event, poster_name )
+        retweet = w.MenuItem( 'Retweet' )
+        retweet.connect( 'activate', self.retweet_event, tag, text, poster_name )
+        retweet_immediately = w.MenuItem( 'Retweet immediately' )
+        retweet_immediately.connect( 'activate',
+                                     self.retweet_immediately_event,
+                                     id )
+        
+        for item in [ pre_separator, reply, retweet, retweet_immediately ]:
+            menu.append( item )
+            item.show()
+
+    def reply_event( self, widget, poster_name ):
+        self.parent.entry().text_entry.get_buffer().set_text( '@%s ' % poster_name )
+        self.parent.entry().text_entry.grab_focus()
+        
+        return True
+        
+    def retweet_event( self, widget, tag, text, poster_name ):
+        start_match = re.search( '^From[^:]*: ', text )
+        if start_match:
+            print start_match
+            text = text[ start_match.end(): ]
+
+        end_match = re.search( '\\nPosted .* ago.*$', text )
+        if end_match:
+            print end_match
+            text = text[ :end_match.start() ]
+
+        text = 'RT @%s: %s' % (poster_name, text)
+
+        self.parent.entry().text_entry.get_buffer().set_text( text )
+        self.parent.entry().text_entry.grab_focus()
+        
+        return True
+
+    def retweet_immediately_event( self, widget, id ):
+        self.parent.entry().start_spinner()
+        
+        tweets.retweet( self.parent.account(), id )
+        self.parent.refresh_event( widget )
+        
+        self.parent.entry().stop_spinner()
+
+        return True
 
     def notify( self, message ):
         if message == 'timeline buffer updated':
@@ -216,6 +283,9 @@ class MainWindow:
     def current_page_item( self, key ):
         current_page = self.tabs.get_current_page()
         return self.tab_items[ current_page ][ key ]        
+
+    def account( self ):
+        return self.current_page_item( 'account' )
 
     def entry( self ):
         return self.current_page_item( 'entry' )

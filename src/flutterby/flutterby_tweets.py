@@ -122,6 +122,11 @@ def tweet( account, text ):
     except t.TweepError:
         return False
 
+def retweet( account, id ):
+    api = make_api( account )
+
+    return api.retweet( id )
+
 ### Authors
 
 def author_image_filename( author ):
@@ -136,7 +141,8 @@ def author_image_filename( author ):
 ### Formatting tweets
 
 def tweet_as_dict( tweet ):
-    return { 'text' : tweet.text,
+    return { 'id' : tweet.id,
+             'text' : tweet.text,
              'author' : '@' + tweet.author.screen_name,
              'full_name' : tweet.author.name,
              'double_name' : '%s (@%s)' % ( tweet.author.name,
@@ -148,7 +154,7 @@ def tweet_as_dict( tweet ):
              }
 
 def tweet_as_text( tweet ):
-    return ( 'From @%(author)s: %(text)s\nPosted %(ago)s via %(client)s\n\n' %
+    return ( 'From %(author)s: %(text)s\nPosted %(ago)s via %(client)s\n\n' %
              tweet_as_dict( tweet ) )
 
 def tweet_as_tag_list( tweet ):
@@ -244,6 +250,8 @@ def tweet_as_tag_list( tweet ):
             tag = [ tag ]
         tag.append( custom_tag( 'from',
                                 td[ 'username' ].lower() ) )
+        tag.append( custom_tag( 'id',
+                                str( td[ 'id' ] ) ) )
 
         ret[ index ] = (text, tag)
     

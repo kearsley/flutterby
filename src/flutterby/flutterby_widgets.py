@@ -151,6 +151,7 @@ class DBTreeView( TreeView ):
 class ClickableTextTag( TextTag ):
     def __init__( self,
                   click_action = None,
+                  right_click_action = None,
                   double_click_action = None,
                   triple_click_action = None,
                   name = None ):
@@ -159,6 +160,7 @@ class ClickableTextTag( TextTag ):
         super( ClickableTextTag, self ).__init__( name )
 
         self.click_action = click_action
+        self.right_click_action = right_click_action
         self.double_click_action = double_click_action
         self.triple_click_action = triple_click_action
 
@@ -172,6 +174,10 @@ class ClickableTextTag( TextTag ):
         if self.click_action and event.type == gdk.BUTTON_RELEASE:
             if self.simple_click and event.button == 1:
                 return self.click_action( texttag, widget, event, point )
+        if ( self.right_click_action and
+             event.type == gdk.BUTTON_PRESS and
+             event.button == 3 ):
+                return self.right_click_action( texttag, widget, event, point )
         if self.double_click_action and event.type == gdk._2BUTTON_PRESS:
             return self.double_click_action( texttag, widget, event, point )
         if self.triple_click_action and event.type == gdk._3BUTTON_PRESS:
@@ -186,8 +192,14 @@ class TweetTextBuffer( TextBuffer ):
         self.setup_tags()
 
         self.custom_tags = { 'from' : ({},
-                                       { 'click_action' : self.named_tweet_click
-                                         } ),
+                                       { 'click_action' : self.named_tweet_click,
+                                         'right_click_action' :
+                                         self.named_tweet_right_click
+                                         }),
+                             'id' : ({},
+                                     { 'right_click_action' :
+                                       self.id_tweet_right_click
+                                       }),
                              }
 
     def setup_tags( self ):
@@ -263,6 +275,27 @@ class TweetTextBuffer( TextBuffer ):
 
     def named_tweet_click( self, texttag, widget, event, point ):
         print texttag.get_property( 'name' )
+
+    def named_tweet_right_click( self, texttag, widget, event, point ):
+        self.right_click_tag = texttag
+        self.right_click_point = point
+
+        start = point.copy()
+
+        flag = start.backward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        flag = point.forward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        self.right_click_text = self.get_text( start, point )
+
+    def id_tweet_right_click( self, texttag, widget, event, point ):
+        tag_name = texttag.get_property( 'name' )
+
+        self.right_click_id = long( custom_tag_payload( tag_name ) )
 
     def tweet_select( self, texttag, widget, event, point ):
         start = point.copy()
