@@ -2,6 +2,7 @@
 import os, re, threading, time, urllib, webbrowser
 
 import gobject, pango
+import pynotify
 
 import tweepy as t
 
@@ -329,12 +330,24 @@ class TimelineSet:
             l.notify( message )
 
     def tweets( self, limit = 20, network = True ):
-        tweets = []
+        tweets = reduce( lambda x, y: x + y,
+                         self.timelines,
+                         [] )
+        ids = [ x.id for x in tweets ]
+        new_tweets = []
         for tl in self.timelines:
             tl.load_timeline( limit = limit,
                               network = network )
-            ids = [ x.id for x in tweets ]
-            tweets += [ x for x in tl if x.id not in ids ]
+            new_tweets += [ x for x in tl if x.id not in ids ]
+        print '\n'.join( [ tweet_as_text( tweet ) for tweet in new_tweets ] )
+
+        for tweet in sorted( new_tweets,
+                             key = lambda x: x.created_at,
+                             reverse = True ):
+            n = pynotify.Notification( tweet.author.screen_name,
+                                       tweet.text )
+            n.show()
+        tweets += new_tweets
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
 
