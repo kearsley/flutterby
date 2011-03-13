@@ -2,7 +2,11 @@
 import os, re, threading, time, urllib, webbrowser
 
 import gobject, pango
-import pynotify
+try:
+    import pynotify
+    NOTIFICATION = 'pynotify'
+except:
+    NOTIFICATION = None
 
 import tweepy as t
 
@@ -341,12 +345,13 @@ class TimelineSet:
             new_tweets += [ x for x in tl if x.id not in ids ]
         print '\n'.join( [ tweet_as_text( tweet ) for tweet in new_tweets ] )
 
-        for tweet in sorted( new_tweets,
-                             key = lambda x: x.created_at,
-                             reverse = True ):
-            n = pynotify.Notification( tweet.author.screen_name,
-                                       tweet.text )
-            n.show()
+        if NOTIFICATION:
+            for tweet in sorted( new_tweets,
+                                 key = lambda x: x.created_at,
+                                 reverse = False ):
+                n = pynotify.Notification( tweet.author.screen_name,
+                                           tweet.text )
+                n.show()
         tweets += new_tweets
         tweets.sort( key = lambda x: x.created_at,
                      reverse = True )
