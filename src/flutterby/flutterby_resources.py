@@ -11,9 +11,9 @@ XML_PATH = os.path.join( RESOURCE_PATH, 'xml' )
 
 USER_PATH = os.path.expanduser( '~/.flutterby' )
 
-USER_DATABASE = os.path.join( USER_PATH, 'flutterby.sqlite3' )
-
 USER_IMAGE_PATH = os.path.join( USER_PATH, 'img' )
+
+USER_DATABASE = os.path.join( USER_PATH, 'flutterby.sqlite3' )
 
 def get_path( base_path, base_ext, filename ):
     name, ext = os.path.splitext( filename )

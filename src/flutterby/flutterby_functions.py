@@ -1,4 +1,4 @@
-import os, sys, time
+import inspect, os, sys, time
 
 SECOND = 1
 MINUTE = 60 * SECOND
@@ -44,7 +44,7 @@ def pluralize( word ):
     return word + 's'
 
 def determine_path():
-    root = sys.argv[0]
+    root = inspect.getfile( inspect.currentframe() )
     
     if os.path.islink( root ):
         root = os.path.realpath( root )
