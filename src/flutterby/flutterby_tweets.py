@@ -142,7 +142,8 @@ def tweet_as_tag_list( tweet ):
     replace_re = re.compile( r'#!#(?P<key>.*)#!#' )
     ref_re = re.compile( r'@(?P<username>\w+)\b' )
     response_re = re.compile( r'^\s*(?P<username>@\w+)\b' )
-    retweet_re = re.compile( r'^\s*(?:RT|via)[:]?\s+(?P<username>@\w+)\b',
+    retweet_re = re.compile( r'^\s*(?:RT|via)[:]?\s+' +
+                             r'(?P<username>@\w+)\b( *[:-]+ *)?',
                              re.IGNORECASE ) 
     url_re = re.compile( unicode( r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', 'utf-8' ) )
 

@@ -1,8 +1,6 @@
 import gobject, gtk, pango
 import os, sys, string, threading, time, unicodedata
 
-print sys.path
-
 import flutterby_db as db
 import flutterby_resources as res
 import flutterby_tweets as tweets
@@ -508,7 +506,18 @@ class FollowingWindow:
         self.window = w.PWindow( 'following', w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Following' )
 
+        mainbox = w.VBox( False, 0 )
+
+        self.accounts = w.DBTreeView( 'accounts', [ ('name', str, 'Account',) ] )
+        selection = self.accounts.get_selection()
+        selection.set_mode( w.SELECTION_SINGLE )
+        selection.connect( 'changed', self.selection_changed )
         
+        self.accounts.show()
+        mainbox.pack_start( self.accounts, True, True, 0 )        
+        
+        mainbox.show()
+        self.window.add( mainbox )
     
 class PreferencesWindow:
     def change_refresh( self, widget ):
@@ -628,6 +637,8 @@ class PreferencesWindow:
 
 def main():
     gobject.threads_init()
+
+    res.setup_user_paths()
 
     mw = MainWindow( 'main' )
     mw.window.show()

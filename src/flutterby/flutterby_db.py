@@ -2,13 +2,13 @@ import os, cPickle, time
 
 import sqlite3 as s3
 
-DB_PATH = os.path.expanduser( '~/.flutterby_db' )
+import flutterby_resources as res
 
 def execute_multi( statements = [],
                    params = [],
                    pre_hook = None,
                    post_hook = None ):
-    conn = s3.connect( DB_PATH )
+    conn = s3.connect( res.USER_DATABASE )
 
     if pre_hook:
         pre_hook( conn, statement, params )
@@ -33,11 +33,12 @@ def execute_sql( statement, params = None, pre_hook = None, post_hook = None ):
     return execute_multi( [ statement ], [ params ], pre_hook, post_hook )[0]
 
 def build_db():
-    if os.path.exists( DB_PATH ):
+    if os.path.exists( res.USER_DATABASE ):
         return
 
     execute_sql( 'create table settings(key text unique, value text)' )
     execute_sql( 'create table accounts(name text unique, token text, secret text, last_checked integer)' )
+    execute_sql( 'create table following(id integer unique, screen_name text)' )
     execute_sql( 'create table tweets(id integer primary key asc, tweet_id integer unique, timestamp integer, account text, from_account text, tweet text)' )
 
 def dump_table( name ):
