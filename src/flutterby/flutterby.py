@@ -21,6 +21,7 @@ class ViewPane:
         self.box.set_policy( w.POLICY_AUTOMATIC, w.POLICY_AUTOMATIC )
 
         self.list = w.TextView( self.timelines.buffer )
+        self.timelines.new_buffer()
         self.list.set_wrap_mode( w.WRAP_WORD )
         self.list.set_editable( False )
 

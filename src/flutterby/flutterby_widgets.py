@@ -178,7 +178,9 @@ class ClickableTextTag( TextTag ):
             return self.double_click_action( texttag, widget, event, point )
 
 class TweetTextBuffer( TextBuffer ):
-    def __init__( self, table = None ):
+    def __init__( self, table = None, parent = None ):
+        self.parent = parent
+        
         super( TweetTextBuffer, self ).__init__( table )
 
         self.setup_tags()
@@ -229,6 +231,9 @@ class TweetTextBuffer( TextBuffer ):
 
     def insert_tag_list( self, point, tag_list ):
         for text, tag in tag_list:
+            if type( text ) not in (str, unicode):
+                continue
+            
             table = self.get_tag_table()
             
             if type( tag ) not in (list, tuple, set):

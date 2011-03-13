@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import re, threading, time, webbrowser
+import os, re, threading, time, urllib, webbrowser
 
 import gobject, pango
 
@@ -7,6 +7,7 @@ import tweepy as t
 
 from flutterby_functions import *
 
+import flutterby_resources as res
 import flutterby_db as db
 import flutterby_widgets as w
 
@@ -115,6 +116,17 @@ def tweet( account, text ):
         return True
     except t.TweepError:
         return False
+
+### Authors
+
+def author_image_filename( author ):
+    url = author.profile_image_url
+    filename = url.split( '/' )
+    filename = '/'.join( [ filename[ -2 ],
+                           filename[ -1 ] ] )
+    filename = os.path.join( res.USER_IMAGE_PATH, filename )
+
+    return url, filename
 
 ### Formatting tweets
 
@@ -229,7 +241,7 @@ def tweet_as_tag_list( tweet ):
                                 td[ 'username' ].lower() ) )
 
         ret[ index ] = (text, tag)
-
+    
     return ret
 
 class Timeline( list ):
@@ -278,10 +290,10 @@ class Timeline( list ):
         return tweets
     
 class TimelineSet:
-    def __init__( self, timelines = [] ):
+    def __init__( self, timelines = [], view = None ):
         self.timelines = timelines
         
-        self.buffer = self.make_buffer()
+        self.new_buffer()
         self.listeners = []
 
     def __repr__( self ):
@@ -291,9 +303,15 @@ class TimelineSet:
         return repr( self )
 
     def make_buffer( self ):
-        buf = w.TweetTextBuffer()
+        if hasattr( self, 'buffer' ) and self.buffer:
+            buf = w.TweetTextBuffer( parent = self.buffer.parent )
+        else:
+            buf = w.TweetTextBuffer()
 
         return buf
+
+    def new_buffer( self ):
+        self.buffer = self.make_buffer()
 
     def add( self, timeline ):
         self.timelines.append( timeline )
@@ -336,6 +354,18 @@ class TimelineSet:
                               time.mktime( tweet.created_at.timetuple() ) ) <
                             tweet_age ) ]
 
+        for tweet in tweets:
+            url, filename = author_image_filename( tweet.author )
+
+            if os.path.exists( filename ):
+                continue
+            dirname = os.path.dirname( filename )
+            if not os.path.exists( dirname ):
+                os.mkdir( dirname )
+                
+            urllib.urlretrieve( url, filename )
+            tweet.author.profile_image_file = filename
+            
         return tweets
 
     def refresh( self, limit = 20, network = True ):
@@ -344,7 +374,7 @@ class TimelineSet:
         tweets = [ tweet_as_tag_list( tweet )
                    for tweet in self.tweets( limit = limit,
                                              network = network ) ]
-        buf = w.TweetTextBuffer()
+        buf = self.make_buffer()
         count = 0
         point = buf.get_end_iter()
         for tweet in tweets:
