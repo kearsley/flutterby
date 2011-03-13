@@ -146,26 +146,30 @@ def tweet_as_tag_list( tweet ):
                              re.IGNORECASE ) 
     url_re = re.compile( unicode( r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', 'utf-8' ) )
 
+    chosen_name = '#!#author#!#'
+    if db.get_param( 'show_name', True ):
+        chosen_name = '#!#double_name#!#'
+
     match = retweet_re.search( tweet.text )
     if match:
         ret = [ ('From ', 'start'),
                 (match.group( 'username' ), 'username'),
                 (' via ', None),
-                ('#!#double_name#!#', 'username'),
+                (chosen_name, 'username'),
                 (': ', None), ]
         tmp = [ (tweet.text[ match.end(): ], None) ]
     else:
         match = response_re.search( tweet.text )
         if match:
             ret = [ ('From ', 'start'),
-                    ('#!#double_name#!#', 'username'),
+                    (chosen_name, 'username'),
                     (' in response to ', None),
                     (match.group( 'username'), 'username'),
                     (': ', None), ]
             tmp = [ (tweet.text[ match.end(): ], None) ]
         else:
             ret = [ ('From ', 'start'),
-                    ('#!#double_name#!#', 'username'),
+                    (chosen_name, 'username'),
                     (': ', None), ]
             tmp = [ (tweet.text, None) ]
     text = tmp[0][0]
@@ -355,7 +359,6 @@ class TimelineSet:
         self.buffer = new_buffer
 
         self.notify_listeners( 'timeline buffer updated' )
-        
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
@@ -365,6 +368,8 @@ class RefreshTimelines( threading.Thread ):
         self.first_run = permit_first
 
         super( RefreshTimelines, self ).__init__()
+
+        self.setDaemon( True )
 
     def start_spinner( self, account ):
         for key, tab in self.main_window.tab_items.items():
@@ -387,6 +392,8 @@ class RefreshTimelines( threading.Thread ):
             gobject.idle_add( self.stop_spinner, account )
 
         self.first_run = False
-        if self.loop and db.get_param( 'delay' ) > 0:
-            threading.Timer( db.get_param( 'delay', 15 ) * 60.0,
-                             self.run )
+        delay = db.get_param( 'delay', 15 )
+        if self.loop and delay > 0:
+            delay *= 60.0
+            time.sleep( delay )
+            self.run()

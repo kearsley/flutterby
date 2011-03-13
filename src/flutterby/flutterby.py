@@ -129,6 +129,7 @@ UI = '''<ui>
   <menubar name="MenuBar">
     <menu action="Flutterby">
       <menuitem action="Accounts" />       
+      <menuitem action="Following" />       
       <menuitem action="Refresh" />      
       <separator />
       <menuitem action="Preferences" />      
@@ -254,6 +255,10 @@ class MainWindow:
         pw = PreferencesWindow( self )
         pw.window.show()
 
+    def following_event( self, widget ):
+        fw = FollowingWindow( self )
+        fw.window.show()
+
     def cut_event( self, widget ):
         foc = self.window.get_focus()
         
@@ -299,14 +304,16 @@ class MainWindow:
         
         actiongroup = w.ActionGroup('UIManagerExample')
         self.actiongroup = actiongroup
-        self.actiongroup.add_actions( [ ('Quit', w.STOCK_QUIT,
-                                         '_Quit', None,
-                                         'Quit the Program',
-                                         self.delete_event),
+        self.actiongroup.add_actions( [ ('Flutterby', None, '_Flutterby'),
                                         ('Accounts', None,
                                          '_Accounts...', '<Control><Shift>A',
                                          'Show and configure accounts',
                                          self.accounts_event),
+                                        ('Following', None,
+                                         '_Following...', '<Control><Shift>F',
+                                         'Configure which accounts you are '
+                                         'following',
+                                         self.following_event),
                                         ('Refresh', None,
                                          '_Refresh', '<Control>R',
                                          'Refresh the twitter timeline',
@@ -315,7 +322,10 @@ class MainWindow:
                                          '_Preferences...', None,
                                          'Configure the application as a whole',
                                          self.preferences_event),
-                                        ('Flutterby', None, '_Flutterby'),
+                                        ('Quit', w.STOCK_QUIT,
+                                         '_Quit', None,
+                                         'Quit the Program',
+                                         self.delete_event),
                                         ('Edit', None, '_Edit'),
                                         ('Cut', w.STOCK_CUT,
                                          'Cut', None,
@@ -493,7 +503,12 @@ class AccountsWindow:
 
 class FollowingWindow:
     def __init__( self, parent ):
-        self.parent
+        self.parent = parent
+
+        self.window = w.PWindow( 'following', w.WINDOW_TOPLEVEL )
+        self.window.set_title( 'Following' )
+
+        
     
 class PreferencesWindow:
     def change_refresh( self, widget ):
@@ -592,6 +607,11 @@ class PreferencesWindow:
         separator = w.HSeparator()
         separator.show()
         mainbox.pack_start( separator, False, True, 2 )
+
+        show_username = w.PCheckButton( 'show_name', 'Show full user name' )
+        show_username.connect( 'toggled', self.change_refresh )
+        show_username.show()
+        mainbox.pack_start( show_username, False, False, 0 )
 
         show_retweets = w.PCheckButton( 'show_retweets', 'Show retweets' )
         show_retweets.connect( 'toggled', self.change_refresh )
