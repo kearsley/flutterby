@@ -38,7 +38,7 @@ def build_db():
 
     execute_sql( 'create table settings(key text unique, value text)' )
     execute_sql( 'create table accounts(name text unique, token text, secret text, last_checked integer)' )
-    execute_sql( 'create table following(id integer unique, screen_name text)' )
+    # execute_sql( 'create table following(id integer unique, screen_name text)' )
     execute_sql( 'create table tweets(id integer primary key asc, tweet_id integer unique, timestamp integer, account text, from_account text, tweet text)' )
 
 def dump_table( name ):
