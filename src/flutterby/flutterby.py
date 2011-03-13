@@ -490,6 +490,10 @@ class AccountsWindow:
     
     def edit_event( self, widget ):
         pass
+
+class FollowingWindow:
+    def __init__( self, parent ):
+        self.parent
     
 class PreferencesWindow:
     def change_refresh( self, widget ):
@@ -500,8 +504,6 @@ class PreferencesWindow:
         
         self.window = w.PWindow( 'preferences', w.WINDOW_TOPLEVEL )
         self.window.set_title( 'Preferences' )
-
-        self.window.move( 200, 200 )
 
         mainbox = w.VBox( False, 0 )
 

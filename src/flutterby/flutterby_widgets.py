@@ -3,6 +3,8 @@ from gtk import *
 
 import webbrowser
 
+from flutterby_functions import *
+
 import flutterby_db as db
 
 class PCheckButton( CheckButton ):
@@ -181,6 +183,11 @@ class TweetTextBuffer( TextBuffer ):
 
         self.setup_tags()
 
+        self.custom_tags = { 'from' : ({},
+                                       { 'click_action' : self.named_tweet_click
+                                         } ),
+                             }
+
     def setup_tags( self ):
         table = self.get_tag_table()
 
@@ -211,6 +218,8 @@ class TweetTextBuffer( TextBuffer ):
                    None),
                   ('tweet', {},
                    { 'double_click_action' : self.tweet_select } )]:
+            if not properties:
+                properties = {}
             if not actions:
                 actions = {}
             tag = ClickableTextTag( name = tag, **actions )
@@ -220,13 +229,35 @@ class TweetTextBuffer( TextBuffer ):
 
     def insert_tag_list( self, point, tag_list ):
         for text, tag in tag_list:
-            if not tag:
-                tag = 'none'
-            if type( tag ) in (list, tuple, set):
-                tag = [ not t and 'none' or t for t in tag ]
-                self.insert_with_tags_by_name( point, text, *tag )
-            else:
-                self.insert_with_tags_by_name( point, text, tag )
+            table = self.get_tag_table()
+            
+            if type( tag ) not in (list, tuple, set):
+                tag = [ tag ]
+                
+            new_tag = []
+            for t in tag:
+                if not t:
+                    t = 'none'
+                if is_custom_tag( t ):
+                    if not self.custom_tags.has_key( custom_tag_name( t ) ):
+                        continue
+                    if not table.lookup( t ):
+                        ( properties,
+                          actions ) = self.custom_tags[ custom_tag_name( t ) ]
+                        if not properties:
+                            properties = {}
+                        if not actions:
+                            actions = {}
+                        tmp_tag = ClickableTextTag( name = t, **actions )
+                        for prop, value in properties.items():
+                            tmp_tag.set_property( prop, value )
+                        table.add( tmp_tag )
+
+                new_tag.append( t )
+            self.insert_with_tags_by_name( point, text, *new_tag )
+
+    def named_tweet_click( self, texttag, widget, event, point ):
+        print texttag.get_property( 'name' )
 
     def tweet_select( self, texttag, widget, event, point ):
         start = point.copy()

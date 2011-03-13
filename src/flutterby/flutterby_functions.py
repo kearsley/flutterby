@@ -44,7 +44,40 @@ def pluralize( word ):
     return word + 's'
 
 def determine_path():
-    root = __file__
-    if os.path.islink (root):
-        root = os.path.realpath (root)
-    return os.path.dirname (os.path.abspath (root))
+    root = sys.argv[0]
+    
+    if os.path.islink( root ):
+        root = os.path.realpath( root )
+    return os.path.dirname( os.path.abspath( root ) )
+
+
+### Tags
+
+CUSTOM_TAG = '@ct@'
+
+def is_custom_tag( tag ):
+    split_tag = custom_tag_split( tag )[0]
+
+    if split_tag == CUSTOM_TAG:
+        return True
+    return False
+
+def custom_tag( tag, payload = None ):
+    tag = [ CUSTOM_TAG, tag ]
+    if payload:
+        tag.append( payload )
+
+    return ':'.join( tag )
+
+def custom_tag_split( tag ):
+    return tag.split( ':' )
+
+def custom_tag_name( tag ):
+    return custom_tag_split( tag )[1]
+
+def custom_tag_payload( tag ):
+    split_tag = custom_tag_split( tag )
+
+    if len( split_tag ) >= 3:
+        return split_tag[2]
+    return None

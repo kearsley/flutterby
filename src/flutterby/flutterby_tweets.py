@@ -5,6 +5,8 @@ import gobject, pango
 
 import tweepy as t
 
+from flutterby_functions import *
+
 import flutterby_db as db
 import flutterby_widgets as w
 
@@ -82,6 +84,10 @@ def tweet( account, text ):
 def tweet_as_dict( tweet ):
     return { 'text' : tweet.text,
              'author' : '@' + tweet.author.screen_name,
+             'full_name' : tweet.author.name,
+             'double_name' : '%s (@%s)' % ( tweet.author.name,
+                                            tweet.author.screen_name ),
+             'username' : tweet.author.screen_name,
              'ago' : ago( time.mktime( tweet.created_at.timetuple() ) ),
              'client' : tweet.source,
              'client_url' : tweet.source_url,
@@ -106,23 +112,23 @@ def tweet_as_tag_list( tweet ):
     match = retweet_re.search( tweet.text )
     if match:
         ret = [ ('From ', 'start'),
-                (match.group( 'username'), 'username'),
+                (match.group( 'username' ), 'username'),
                 (' via ', None),
-                ('#!#author#!#', 'username'),
+                ('#!#double_name#!#', 'username'),
                 (': ', None), ]
         tmp = [ (tweet.text[ match.end(): ], None) ]
     else:
         match = response_re.search( tweet.text )
         if match:
             ret = [ ('From ', 'start'),
-                    ('#!#author#!#', 'username'),
+                    ('#!#double_name#!#', 'username'),
                     (' in response to ', None),
                     (match.group( 'username'), 'username'),
                     (': ', None), ]
             tmp = [ (tweet.text[ match.end(): ], None) ]
         else:
             ret = [ ('From ', 'start'),
-                    ('#!#author#!#', 'username'),
+                    ('#!#double_name#!#', 'username'),
                     (': ', None), ]
             tmp = [ (tweet.text, None) ]
     text = tmp[0][0]
@@ -174,7 +180,13 @@ def tweet_as_tag_list( tweet ):
         match = replace_re.match( text )
         if match:
             text = td[ match.group( 'key' ) ]
-            ret[ index ] = (text, tag)
+
+        if type( tag ) != list:
+            tag = [ tag ]
+        tag.append( custom_tag( 'from',
+                                td[ 'username' ].lower() ) )
+
+        ret[ index ] = (text, tag)
 
     return ret
 
