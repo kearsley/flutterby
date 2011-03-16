@@ -24,9 +24,7 @@ class ViewPane:
 
         self.list = w.TextView( self.timelines.buffer )
         self.timelines.new_buffer()
-        self.list.set_wrap_mode( w.WRAP_WORD )
-        self.list.set_left_margin( 55 )
-        self.list.set_editable( False )
+        self.setup_text( self.list )
         self.list.connect_after( 'populate-popup', self.popup_menu_event )
 
         self.timelines.add_listener( self )
@@ -34,6 +32,14 @@ class ViewPane:
         self.list.show()
         self.box.add_with_viewport( self.list )
         self.box.show()
+
+    def setup_text( self, widget ):
+        self.list.set_wrap_mode( w.WRAP_WORD )
+        if db.get_param( 'show_icon' ):
+            self.list.set_left_margin( 55 )
+        else:
+            self.list.set_left_margin( 0 )
+        self.list.set_editable( False )
 
     def popup_menu_event( self, widget, menu ):
         id = self.list.get_buffer().right_click_id
@@ -696,6 +702,12 @@ class PreferencesWindow:
         show_username.connect( 'toggled', self.change_refresh )
         show_username.show()
         mainbox.pack_start( show_username, False, False, 0 )
+
+        show_icon = w.PCheckButton( 'show_icon', 'Show user icons' )
+        show_icon.connect( 'toggled', self.parent.view().setup_text )
+        show_icon.connect( 'toggled', self.change_refresh ) 
+        show_icon.show()
+        mainbox.pack_start( show_icon, False, False, 0 )
 
         show_retweets = w.PCheckButton( 'show_retweets', 'Show retweets' )
         show_retweets.connect( 'toggled', self.change_refresh )

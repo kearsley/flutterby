@@ -429,7 +429,8 @@ class TimelineSet:
 
         self.notify_listeners( 'timeline buffer updated' )
 
-        gobject.idle_add( self.buffer.insert_images, tweets )
+        if db.get_param( 'show_icon' ):
+            gobject.idle_add( self.buffer.insert_images, tweets )
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
