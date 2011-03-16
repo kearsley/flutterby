@@ -423,7 +423,7 @@ class TimelineSet:
 
                 urllib.urlretrieve( url, filename )
 
-            mark = point
+            mark = buf.create_mark( None, point, True )
             img = res.get_image( filename )
             images.append( (mark, img) )
 
