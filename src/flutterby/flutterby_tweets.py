@@ -129,15 +129,24 @@ def retweet( account, id ):
 
 ### Authors
 
-def author_image_filename( author ):
-    url = author.profile_image_url
+def url_image_filename( url ):
     filename = url.split( '/' )
     filename = '/'.join( [ filename[ -2 ],
                            filename[ -1 ] ] )
     filename = os.path.join( res.USER_IMAGE_PATH, filename )
 
     return url, filename
+    
+def author_image_filename( author ):
+    return url_image_filename( author.profile_image_url )
 
+def tweet_image_filename( tweet ):
+    if hasattr( tweet, 'retweeted_status' ) and tweet.retweeted_status:
+        author = tweet.retweeted_status.author
+    else:
+        author = tweet.author
+    return author_image_filename( author )
+    
 ### Formatting tweets
 
 def tweet_as_dict( tweet ):
@@ -379,7 +388,7 @@ class TimelineSet:
             for tweet in sorted( new_tweets,
                                  key = lambda x: x.created_at,
                                  reverse = False ):
-                url, filename = author_image_filename( tweet.author )
+                url, filename = tweet_image_filename( tweet )
                 uri = None
                 if os.path.exists( filename ):
                     uri = 'file://%s' % filename
@@ -399,12 +408,13 @@ class TimelineSet:
         buf = self.make_buffer()
         count = 0
         point = buf.get_end_iter()
+        images = []
         for tweet, tag_list in tweets:
             if count > 0:
                 buf.insert_tag_list( point,
                                      [ ('\n\n', 'separator') ] )
                 
-            url, filename = author_image_filename( tweet.author )
+            url, filename = tweet_image_filename( tweet )
 
             if not os.path.exists( filename ):
                 dirname = os.path.dirname( filename )
@@ -413,14 +423,16 @@ class TimelineSet:
 
                 urllib.urlretrieve( url, filename )
 
+            mark = point
+            img = res.get_image( filename )
+            images.append( (mark, img) )
+
             buf.insert_tag_list( point, tag_list )
             count += 1        
 
-        gobject.idle_add( self.update,
-                          buf,
-                          [ tweet for tweet, tag_list in tweets ] )
+        gobject.idle_add( self.update, buf, images )
 
-    def update( self, new_buffer, tweets ):
+    def update( self, new_buffer, images ):
         self.buffer = new_buffer
 
         if self.buffer.parent:
@@ -430,7 +442,7 @@ class TimelineSet:
         self.notify_listeners( 'timeline buffer updated' )
 
         if db.get_param( 'show_icon' ):
-            gobject.idle_add( self.buffer.insert_images, tweets )
+            gobject.idle_add( self.buffer.insert_images, images )
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
