@@ -399,7 +399,6 @@ class TimelineSet:
         buf = self.make_buffer()
         count = 0
         point = buf.get_end_iter()
-        images = []
         for tweet, tag_list in tweets:
             if count > 0:
                 buf.insert_tag_list( point,
@@ -414,21 +413,23 @@ class TimelineSet:
 
                 urllib.urlretrieve( url, filename )
 
-            img = res.get_image( filename )
-
-            images.append( img )
-
             buf.insert_tag_list( point, tag_list )
             count += 1        
 
-        gobject.idle_add( self.update, buf, images )
+        gobject.idle_add( self.update,
+                          buf,
+                          [ tweet for tweet, tag_list in tweets ] )
 
-    def update( self, new_buffer, images ):
+    def update( self, new_buffer, tweets ):
         self.buffer = new_buffer
+
+        if self.buffer.parent:
+            for child in self.buffer.parent.get_children():
+                self.buffer.parent.remove( child )
 
         self.notify_listeners( 'timeline buffer updated' )
 
-        gobject.idle_add( self.buffer.insert_images, images )
+        gobject.idle_add( self.buffer.insert_images, tweets )
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
