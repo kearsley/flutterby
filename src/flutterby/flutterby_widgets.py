@@ -282,15 +282,14 @@ class TweetTextBuffer( TextBuffer ):
         table = self.get_tag_table()
         separator = table.lookup( 'separator' )
 
-        point = self.get_start_iter()
+        point = self.parent.get_buffer().get_start_iter()
         for img in images:
-            rect = self.parent.get_iter_location( point )
-            x, y = self.parent.buffer_to_window_coords( TEXT_WINDOW_TEXT,
-                                                       rect.x, rect.y )
+            y, height = self.parent.get_line_yrange( point )
 
-            print 'Point coords: (%d, %d)' % (x, y)
+            x = 4
+            print 'Point coords: (%d, %d,)' % (x, y),
+            print point.get_line()
 
-            x = 0
             self.parent.add_child_in_window( img,
                                              TEXT_WINDOW_TEXT,
                                              x, y )
@@ -301,7 +300,11 @@ class TweetTextBuffer( TextBuffer ):
             if not point.forward_to_tag_toggle( separator ):
                 break
 
-            self.insert( point, '`' )
+        point = self.parent.get_buffer().get_end_iter()
+        y, height = self.parent.get_line_yrange( point )
+        x = 4
+        print 'Point coords: (%d, %d,)' % (x, y),
+        
             
     def named_tweet_click( self, texttag, widget, event, point ):
         print texttag.get_property( 'name' )

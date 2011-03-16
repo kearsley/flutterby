@@ -102,6 +102,13 @@ class ViewPane:
     def notify( self, message ):
         if message == 'timeline buffer updated':
             self.list.set_buffer( self.timelines.buffer )
+            self.list.queue_draw()
+
+            window = self.list.window
+            if window:
+                window.process_updates( True )
+            else:
+                print 'No window.'
 
 class EntryPane:
     def __init__( self, parent, tab ):
