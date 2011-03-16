@@ -326,7 +326,7 @@ class TweetTextBuffer( TextBuffer ):
         url = self.get_slice( start, point )
 
         webbrowser.open( url )
-        return True
+        return False
 
 def prompt_dialog( message, label ):
     def responseToDialog(entry, dialog, response):
