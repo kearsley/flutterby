@@ -25,7 +25,7 @@ class ViewPane:
         self.list = w.TextView( self.timelines.buffer )
         self.timelines.new_buffer()
         self.list.set_wrap_mode( w.WRAP_WORD )
-        self.list.set_left_margin( 70 )
+        self.list.set_left_margin( 55 )
         self.list.set_editable( False )
         self.list.connect_after( 'populate-popup', self.popup_menu_event )
 
@@ -102,14 +102,10 @@ class ViewPane:
     def notify( self, message ):
         if message == 'timeline buffer updated':
             self.list.set_buffer( self.timelines.buffer )
-            self.list.queue_draw()
 
-            window = self.list.window
-            if window:
-                window.process_updates( True )
-            else:
-                print 'No window.'
-
+            # self.list.queue_draw()
+            # w.gdk.window_process_all_updates()
+            
 class EntryPane:
     def __init__( self, parent, tab ):
         self.last_changed = 0

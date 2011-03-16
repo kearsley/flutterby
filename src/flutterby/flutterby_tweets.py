@@ -428,7 +428,7 @@ class TimelineSet:
 
         self.notify_listeners( 'timeline buffer updated' )
 
-        self.buffer.insert_images( images )
+        gobject.idle_add( self.buffer.insert_images, images )
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
