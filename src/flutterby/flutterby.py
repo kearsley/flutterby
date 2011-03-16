@@ -25,6 +25,7 @@ class ViewPane:
         self.list = w.TextView( self.timelines.buffer )
         self.timelines.new_buffer()
         self.list.set_wrap_mode( w.WRAP_WORD )
+        self.list.set_left_margin( 70 )
         self.list.set_editable( False )
         self.list.connect_after( 'populate-popup', self.popup_menu_event )
 
@@ -237,6 +238,7 @@ class MainWindow:
             
             # The reading/viewing area
             view = ViewPane( self, self.tabs.get_n_pages(), timelines )
+            timelines.buffer.parent = view.list
             tab_item[ 'view' ] = view
 
             # The editing area

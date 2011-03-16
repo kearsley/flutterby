@@ -255,7 +255,7 @@ def tweet_as_tag_list( tweet ):
 
         ret[ index ] = (text, tag)
     
-    return ret
+    return tweet, ret
 
 class Timeline( list ):
     def __init__( self, account ):
@@ -375,18 +375,6 @@ class TimelineSet:
                               time.mktime( tweet.created_at.timetuple() ) ) <
                             tweet_age ) ]
 
-        for tweet in tweets:
-            url, filename = author_image_filename( tweet.author )
-
-            if os.path.exists( filename ):
-                continue
-            dirname = os.path.dirname( filename )
-            if not os.path.exists( dirname ):
-                os.mkdir( dirname )
-                
-            urllib.urlretrieve( url, filename )
-            tweet.author.profile_image_file = filename
-
         if NOTIFICATION and db.get_param( 'new_tweet_notify', True ):
             for tweet in sorted( new_tweets,
                                  key = lambda x: x.created_at,
@@ -411,19 +399,36 @@ class TimelineSet:
         buf = self.make_buffer()
         count = 0
         point = buf.get_end_iter()
-        for tweet in tweets:
+        images = []
+        for tweet, tag_list in tweets:
             if count > 0:
                 buf.insert_tag_list( point,
                                      [ ('\n\n', 'separator') ] )
-            buf.insert_tag_list( point, tweet )
+                
+            url, filename = author_image_filename( tweet.author )
+
+            if not os.path.exists( filename ):
+                dirname = os.path.dirname( filename )
+                if not os.path.exists( dirname ):
+                    os.mkdir( dirname )
+
+                urllib.urlretrieve( url, filename )
+
+            img = res.get_image( filename )
+
+            images.append( img )
+
+            buf.insert_tag_list( point, tag_list )
             count += 1        
 
-        gobject.idle_add( self.update, buf )
+        gobject.idle_add( self.update, buf, images )
 
-    def update( self, new_buffer ):
+    def update( self, new_buffer, images ):
         self.buffer = new_buffer
 
         self.notify_listeners( 'timeline buffer updated' )
+
+        self.buffer.insert_images( images )
 
 class RefreshTimelines( threading.Thread ):
     def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
