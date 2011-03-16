@@ -276,7 +276,7 @@ class TweetTextBuffer( TextBuffer ):
                 new_tag.append( t )
             self.insert_with_tags_by_name( point, text, *new_tag )
 
-    def insert_images( self, tweet_list ):
+    def insert_images( self, images ):
         print 'Inserting images'
         
         if not self.parent:
@@ -285,23 +285,16 @@ class TweetTextBuffer( TextBuffer ):
         table = self.get_tag_table()
         separator = table.lookup( 'separator' )
 
-        children = self.parent.get_children()
-        for child in children:
-            self.parent.remove( child )
-
         point = self.parent.get_buffer().get_start_iter()
         x = 4
-        for tweet in tweet_list:
+        for mark, img in images:
             y, height = self.parent.get_line_yrange( point )
             y += 4
 
-            url, filename = tweets.author_image_filename( tweet.author ) 
-            img = res.get_image( filename )
-            
+            img.show()
             self.parent.add_child_in_window( img,
                                              TEXT_WINDOW_TEXT,
                                              x, y )
-            img.show()
 
             if not point.forward_to_tag_toggle( separator ):
                 break
