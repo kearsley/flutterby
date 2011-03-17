@@ -18,6 +18,45 @@
    sodipodi:docname="schmetterlingen.svg">
   <defs
      id="defs4">
+    <marker
+       inkscape:stockid="Arrow1Send"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Send"
+       style="overflow:visible;">
+      <path
+         id="path3752"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.2) rotate(180) translate(6,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;">
+      <path
+         id="path3746"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;">
+      <path
+         id="path3740"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
     <linearGradient
        id="linearGradient3780">
       <stop
@@ -90,16 +129,16 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="254.56935"
-     inkscape:cy="651.35667"
+     inkscape:cx="164.1607"
+     inkscape:cy="949.50385"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1280"
-     inkscape:window-height="779"
-     inkscape:window-x="0"
+     inkscape:window-height="773"
+     inkscape:window-x="1280"
      inkscape:window-y="0"
      inkscape:window-maximized="1">
     <inkscape:grid
@@ -205,5 +244,55 @@
        style="fill:none;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
        d="m 235,322.36218 10,35 10,-35"
        id="path3794" />
+    <rect
+       style="fill:#112b00;stroke:#000000;stroke-width:10;stroke-linejoin:round"
+       id="rect2948"
+       width="330"
+       height="220"
+       x="0"
+       y="2.3621953"
+       inkscape:export-filename="/home/kearsley/src/flutterby/src/flutterby/resources/img/retweet.png"
+       inkscape:export-xdpi="6.3499999"
+       inkscape:export-ydpi="6.3499999" />
+    <path
+       style="fill:none;stroke:#f4eed7;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none;marker-end:none"
+       d="m 105,117.36218 -50,50 100,0"
+       id="path3726"
+       sodipodi:nodetypes="ccc" />
+    <path
+       style="fill:none;stroke:#f4eed7;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none;marker-end:none"
+       d="M 215,107.36218 165,57.362183 120,102.36218"
+       id="path3728"
+       sodipodi:nodetypes="ccc" />
+    <path
+       style="fill:none;stroke:#f4eed7;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none"
+       d="m 175,167.36218 100,0 -45,-45"
+       id="path3732"
+       sodipodi:nodetypes="ccc" />
+    <path
+       style="fill:#f4eed7;stroke:#f4eed7;stroke-width:4;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1"
+       d="m 150,167.36218 -10,-15 20,15 -20,15 10,-15 z"
+       id="path5308"
+       sodipodi:nodetypes="ccccc" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#path5308"
+       id="use5310"
+       transform="matrix(-0.6972968,0.71678251,-0.71678251,-0.6972968,349.5568,106.54592)"
+       width="744.09448"
+       height="1052.3622"
+       inkscape:transform-center-x="-13.743435"
+       inkscape:transform-center-y="-13.831115" />
+    <use
+       inkscape:transform-center-y="13.831115"
+       inkscape:transform-center-x="-13.743435"
+       height="1052.3622"
+       width="744.09448"
+       transform="matrix(-0.6972968,-0.71678251,-0.71678251,0.6972968,456.8321,116.47007)"
+       id="use5312"
+       xlink:href="#path5308"
+       y="0"
+       x="0" />
   </g>
 </svg>
