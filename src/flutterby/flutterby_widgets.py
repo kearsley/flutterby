@@ -406,7 +406,7 @@ class TweetTextBuffer( TextBuffer ):
 
     def named_tweet_right_click( self, texttag, widget, event, point ):
         self.right_click_tag = texttag
-        self.right_click_point = point
+        self.right_click_mark = self.create_mark( None, point, False )
 
         start = point.copy()
 

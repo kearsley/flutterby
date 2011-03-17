@@ -59,7 +59,7 @@ class ViewPane:
     def popup_menu_event( self, widget, menu ):
         id = self.list.get_buffer().right_click_id
         tag = self.list.get_buffer().right_click_tag
-        point = self.list.get_buffer().right_click_point
+        mark = self.list.get_buffer().right_click_mark
         text = self.list.get_buffer().right_click_text
 
         tag_name = tag.get_property( 'name' )
@@ -71,12 +71,58 @@ class ViewPane:
         if tag_type == 'from':
             poster_name = custom_tag_payload( tag_name )
 
+        to_delete = [ 'cut', 'delete', 'paste',
+                      'input methods', 'insert unicode control character' ]
+        insert_after = { 'copy' : [ ('Copy Tweet',
+                                     self.copy_tweet,
+                                     poster_name,
+                                     text ),
+                                    ],
+                         'select all' : [ ('Select Tweet',
+                                           self.select_tweet,
+                                           tag_name,
+                                           mark ),
+                                          ('Select Full Tweet',
+                                           self.select_full_tweet,
+                                           tag_name,
+                                           mark ),
+                                          ],
+                         }
+        position = 0
+        for child in menu.get_children():
+            if not hasattr( child, 'get_children' ):
+                position += 1
+                continue
+            for label in child.get_children():
+                if not hasattr( label, 'get_text' ):
+                    continue
+                label_text = label.get_text()
+                if label_text:
+                    label_text = label_text.lower()
+                if label_text in to_delete:
+                    menu.remove( child )
+                    position -= 1
+                    break
+                if label_text in insert_after.keys():
+                    for item in insert_after[ label_text ]:
+                        new_label = item[0]
+                        new_func = item[1]
+                        new_args = []
+                        if len( item ) > 2:
+                            new_args = item[2:]
+                        new_item = w.MenuItem( new_label )
+                        new_item.connect( 'activate', new_func, *new_args )
+                        new_item.show()
+                        position += 1
+                        menu.insert( new_item, position )
+            position += 1
+
         pre_separator = w.SeparatorMenuItem()
         
         reply = w.MenuItem( 'Reply' )
         reply.connect( 'activate', self.reply_event, poster_name )
-        retweet = w.MenuItem( 'Retweet' )
-        retweet.connect( 'activate', self.retweet_event, tag, text, poster_name )
+        retweet = w.MenuItem( 'Retweet...' )
+        retweet.connect( 'activate', self.retweet_event, poster_name, text )
         retweet_immediately = w.MenuItem( 'Retweet immediately' )
         retweet_immediately.connect( 'activate',
                                      self.retweet_immediately_event,
@@ -86,24 +132,83 @@ class ViewPane:
             menu.append( item )
             item.show()
 
+    def tweet_text( self, poster_name, text ):
+        start_match = re.search( '^[^:]*: ', text )
+        if start_match:
+            text = text[ start_match.end(): ]
+
+        end_match = re.search( '\\nPosted .* ago.*$', text )
+        if end_match:
+            text = text[ :end_match.start() ]
+
+        text = '@%s: %s' % (poster_name, text)
+
+        return text
+
+    def copy_tweet( self, widget, poster_name, text ):
+        text = self.tweet_text( poster_name, text )
+
+        clip = w.Clipboard()
+        clip.set_text( text )
+
+        return True
+
+    def select_tweet( self, widget, tag_name, mark ):
+        buf = self.list.get_buffer()
+        table = buf.get_tag_table()
+        tag = table.lookup( tag_name )
+        tweet_tag = table.lookup( 'tweet' )
+
+        if not tag:
+            dprint( DEBUG_MESSAGES,
+                    'Tag "%(tag_name)s" does not exist',
+                    tag_name = tag_name )
+            return False
+
+        point = buf.get_iter_at_mark( mark )
+        if not point.backward_to_tag_toggle( tag ):
+            return False
+        if not point.forward_to_tag_toggle( tweet_tag ):
+            return False
+        start = point.copy()        
+        if not point.forward_to_tag_toggle( tweet_tag ):
+            return False
+
+        buf.select_range( start, point )
+
+        return True
+        
+    def select_full_tweet( self, widget, tag_name, mark ):
+        buf = self.list.get_buffer()
+        table = buf.get_tag_table()
+        tag = table.lookup( tag_name )
+        tweet_tag = table.lookup( 'tweet' )
+
+        if not tag:
+            dprint( DEBUG_MESSAGES,
+                    'Tag "%(tag_name)s" does not exist',
+                    tag_name = tag_name )
+            return False
+
+        point = buf.get_iter_at_mark( mark )
+        if not point.backward_to_tag_toggle( tag ):
+            return False
+        start = point.copy()        
+        if not point.forward_to_tag_toggle( tag ):
+            return False
+
+        buf.select_range( start, point )
+
+        return True
+        
     def reply_event( self, widget, poster_name ):
         self.parent.entry().text_entry.get_buffer().set_text( '@%s ' % poster_name )
         self.parent.entry().text_entry.grab_focus()
         
         return True
         
-    def retweet_event( self, widget, tag, text, poster_name ):
-        start_match = re.search( '^From[^:]*: ', text )
-        if start_match:
-            print start_match
-            text = text[ start_match.end(): ]
-
-        end_match = re.search( '\\nPosted .* ago.*$', text )
-        if end_match:
-            print end_match
-            text = text[ :end_match.start() ]
-
-        text = 'RT @%s: %s' % (poster_name, text)
+    def retweet_event( self, widget, poster_name, text ):
+        text = 'RT ' + self.tweet_text( poster_name, text )
 
         self.parent.entry().text_entry.get_buffer().set_text( text )
         self.parent.entry().text_entry.grab_focus()
