@@ -460,7 +460,7 @@ class TimelineSet:
                 urllib.urlretrieve( url, filename )
 
             mark = buf.create_mark( None, point, True )
-            img = res.get_image( filename, tweet )
+            img = res.get_usericon( filename, tweet )
             img.mark = mark
             images.append( img )
 

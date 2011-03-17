@@ -33,14 +33,7 @@ PIXBUFS = {}
 def image_path( filename ):
     return get_path( IMAGE_PATH, '.png', filename )
 
-def get_image( filename, tweet = None ):
-    id = None
-    if tweet:
-        id = '%s:%s' % ( tweet.account, unicode( tweet.id ) )
-    
-    if id and IMAGES.has_key( id ):
-        return IMAGES[ id ]
-
+def get_pixbuf( filename ):
     if os.path.isabs( filename ):
         path = filename
     else:
@@ -56,13 +49,33 @@ def get_image( filename, tweet = None ):
     if not pixbuf:
         pixbuf = gtk.gdk.pixbuf_new_from_file( path )
         PIXBUFS[ path ] = pixbuf
+
+    return pixbuf
+
+def get_image_of_class( filename, class_type, id = None ):
+    if id and IMAGES.has_key( id ):
+        return IMAGES[ id ]
+
+    pixbuf = get_pixbuf( filename )
+    if not pixbuf:
+        return None
     
-    img = UserIcon()
+    img = class_type()
     img.set_from_pixbuf( pixbuf )
     if id:
         IMAGES[ id ] = img
 
     return img
+
+def get_image( filename ):
+    return get_image_of_class( filename, gtk.Image )    
+
+def get_usericon( filename, tweet = None ):
+    id = None
+    if tweet:
+        id = '%s:%s' % ( tweet.account, unicode( tweet.id ) )
+    
+    return get_image_of_class( filename, UserIcon, id )
 
 def setup_user_paths():
     for path in [ USER_PATH, USER_IMAGE_PATH ]:
