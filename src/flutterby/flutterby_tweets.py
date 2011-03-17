@@ -282,9 +282,14 @@ class Timeline( list ):
 
     def update( self, tweets ):
         ids = [ x.id for x in self ]
-        tweets = [ tweet for tweet in tweets if tweet.id not in ids ]
+        added = []
+        for tweet in tweets:
+            if tweet.id in ids:
+                continue
+            tweet.account = self.account
+            added.append( tweet )
 
-        self += tweets
+        self += added
 
     def load_timeline( self, limit = 20, network = True ):
         if network:
@@ -424,7 +429,7 @@ class TimelineSet:
                 urllib.urlretrieve( url, filename )
 
             mark = buf.create_mark( None, point, True )
-            img = res.get_image( filename )
+            img = res.get_image( filename, tweet )
             images.append( (mark, img) )
 
             buf.insert_tag_list( point, tag_list )
