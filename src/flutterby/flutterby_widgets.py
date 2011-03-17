@@ -351,6 +351,14 @@ class TweetTextBuffer( TextBuffer ):
     def insert_tag_list( self, point, tag_list ):
         for text, tag in tag_list:
             if type( text ) not in (str, unicode):
+                if 'image' in tag:
+                    if not self.parent:
+                        continue
+                    anchor = self.create_child_anchor( point )
+                    text.show()
+                    self.parent.add_child_at_anchor( text, anchor )
+                elif 'pixbuf' in tag:
+                    self.insert_pixbuf( point, text )
                 continue
             
             table = self.get_tag_table()

@@ -153,7 +153,7 @@ def tweet_as_dict( tweet ):
     ending_hashtag_re = re.compile( r'\s+(?P<hashtags>(#\w+\s*)+)\s*$' )
     response_re = re.compile( r'^\s*(?P<username>@\w+)\b' )
     retweet_re = re.compile( r'^\s*(?:RT|via)[:]?\s+' +
-                             r'(?P<username>@\w+)\b( *[:-]+ *)?',
+                             r'@(?P<username>\w+)\b( *[:-]+ *)?',
                              re.IGNORECASE ) 
 
     ret = { 'id' : tweet.id,
@@ -177,7 +177,7 @@ def tweet_as_dict( tweet ):
     currently_from = None
     match = retweet_re.search( tweet.text )
     if hasattr( tweet, 'retweeted_status' ) and tweet.retweeted_status:
-        originally_from = '@' + tweet.retweeted_status.author.screen_name
+        originally_from = tweet.retweeted_status.author.screen_name
         currently_from = chosen_name
         text = tweet.retweeted_status.text
     elif match:
@@ -222,7 +222,8 @@ def tweet_as_tag_list( tweet ):
     header = []
     # header = [ ('From ', 'start') ]
     if td[ 'originally from' ]:
-        header += [ ('#!#originally from#!#', 'username'),
+        header += [ (res.get_pixbuf( 'retweet' ), ['pixbuf']),
+                    ('#!#originally from#!#', 'username'),
                     (' via ', None),
                     ('#!#from#!#', 'username') ]
     elif td[ 'response to' ]:
@@ -280,6 +281,9 @@ def tweet_as_tag_list( tweet ):
 
     for index in xrange( len( ret ) ):
         text, tag = ret[ index ]
+
+        if type( text ) not in (str, unicode,):
+            continue
         
         match = replace_re.match( text )
         if match:
@@ -294,7 +298,7 @@ def tweet_as_tag_list( tweet ):
         tag.append( 'full_tweet' )
 
         ret[ index ] = (text, tag)
-    
+
     return tweet, ret
 
 class Timeline( list ):
