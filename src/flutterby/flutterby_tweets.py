@@ -214,26 +214,32 @@ def tweet_as_tag_list( tweet ):
     td = tweet_as_dict( tweet )
     
     replace_re = re.compile( r'#!#(?P<key>.*)#!#' )
-    hashtag_re = re.compile( r'#(?P<hashtag>\w+)\b' )
+    hashtag_re = re.compile( r'#(?P<hashtag>\S+)\b' )
     ref_re = re.compile( r'@(?P<username>\w+)\b' )
     url_re = re.compile( unicode( r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', 'utf-8' ) )
 
+    header = []
+    # header = [ ('From ', 'start') ]
     if td[ 'originally from' ]:
-        header = [ ('From ', 'start'),
-                   ('#!#originally from#!#', 'username'),
-                   (' via ', None),
-                   ('#!#from#!#', 'username') ]
+        header += [ ('#!#originally from#!#', 'username'),
+                    (' via ', None),
+                    ('#!#from#!#', 'username') ]
     elif td[ 'response to' ]:
-        header = [ ('From ', 'start'),
-                   ('#!#from#!#', 'username'),
-                   (' in response to ', None),
-                   ('#!#response to#!#', 'username') ]
+        header += [ ('#!#from#!#', 'username'),
+                    (' in response to ', None),
+                    ('#!#response to#!#', 'username') ]
     else:
-        header = [ ('From ', 'start'),
-                   ('#!#from#!#', 'username') ]
+        header += [ ('#!#from#!#', 'username') ]
     header.append( (': ', None) )
 
-    ret = header
+    ret = []
+    for text, tag in header:
+        if type( tag ) not in (list,):
+            tag = [ tag ]
+
+        tag.append( 'header' )
+        ret.append( (text, tag) )
+
     tmp = [(td[ 'text' ], None)]
 
     def tag_blob( regex, use_tag ):
