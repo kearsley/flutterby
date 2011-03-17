@@ -3,6 +3,7 @@ import re, os, sys
 import gtk
 
 from flutterby_functions import determine_path
+from flutterby_widgets import UserIcon
 
 BASE_PATH = determine_path()
 
@@ -56,7 +57,8 @@ def get_image( filename, tweet = None ):
         pixbuf = gtk.gdk.pixbuf_new_from_file( path )
         PIXBUFS[ path ] = pixbuf
     
-    img = gtk.image_new_from_pixbuf( pixbuf )
+    img = UserIcon()
+    img.set_from_pixbuf( pixbuf )
     if id:
         IMAGES[ id ] = img
 

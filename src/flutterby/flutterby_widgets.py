@@ -167,7 +167,7 @@ class ClickableTextTag( TextTag ):
         self.double_click_action = double_click_action
         self.triple_click_action = triple_click_action
 
-        self.connect( 'event', self.click_event )
+        self.connect_after( 'event', self.click_event )
 
     def click_event( self, texttag, widget, event, point ):
         if event.type == gdk.BUTTON_PRESS:
@@ -185,6 +185,74 @@ class ClickableTextTag( TextTag ):
             return self.double_click_action( texttag, widget, event, point )
         if self.triple_click_action and event.type == gdk._3BUTTON_PRESS:
             return self.double_click_action( texttag, widget, event, point )
+
+class UserIcon( Image ):
+    def __init__( self ):
+        super( Image, self ).__init__()
+
+        self.mark = None
+        
+        self.simple_click = False
+
+        self.connect( 'event', self.click_event )
+
+    def click_event( self, widget, event ):
+        ret = False
+
+        if event.type == gdk._2BUTTON_PRESS:
+            print 'Double-click on:', self
+            if event.button != 1:
+                return False
+
+            buf = self.mark.get_buffer()
+            table = buf.get_tag_table()
+            tweet = table.lookup( 'tweet' )
+            
+            start = buf.get_iter_at_mark( self.mark )
+            if not start.forward_to_tag_toggle( tweet ):
+                return False
+            end = start.copy()
+            if not end.forward_to_tag_toggle( tweet ):
+                return False
+
+            buf.select_range( start, end )
+
+            self.simple_click = False 
+            return True
+
+        if event.type == gdk.BUTTON_PRESS:
+            if event.button != 1:
+                return False
+            self.simple_click = True
+            ret = True
+        if event.type == gdk.MOTION_NOTIFY:
+            self.simple_click = False
+            ret = False
+        if self.simple_click and event.type == gdk.BUTTON_RELEASE:
+            if event.button != 1:
+                return False
+            print 'Click on:', self
+            if self.mark and self.mark.get_buffer():
+                point = self.mark.get_buffer().get_iter_at_mark( self.mark )
+                self.mark.get_buffer().place_cursor( point )
+            self.simple_click = False
+            ret = True
+        elif event.type == gdk.BUTTON_RELEASE:
+            ret = False
+
+        return ret
+
+    def mouse_down( self, widget, event ):
+        self.simple_click = True
+        return True
+
+    def mouse_up( self, widget, event ):
+        if not self.simple_click:
+            return False
+        return True
+
+    def motion_notify( self, widget, event ):
+        self.simple_click = False
 
 class TweetTextBuffer( TextBuffer ):
     def __init__( self, table = None, parent = None ):
@@ -283,8 +351,10 @@ class TweetTextBuffer( TextBuffer ):
             return
 
         x = 4
-        for mark, img in images:
-            point = self.get_iter_at_mark( mark )
+        for img in images:
+            if not img.mark:
+                continue
+            point = self.get_iter_at_mark( img.mark )
             y, height = self.parent.get_line_yrange( point )
             y += 4
 
@@ -294,7 +364,7 @@ class TweetTextBuffer( TextBuffer ):
                                              x, y )
             
     def named_tweet_click( self, texttag, widget, event, point ):
-        print texttag.get_property( 'name' )
+        pass
 
     def named_tweet_right_click( self, texttag, widget, event, point ):
         self.right_click_tag = texttag

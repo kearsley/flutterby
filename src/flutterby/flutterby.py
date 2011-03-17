@@ -25,7 +25,8 @@ class ViewPane:
         self.list = w.TextView( self.timelines.buffer )
         self.timelines.new_buffer()
         self.setup_text()
-        self.list.connect_after( 'populate-popup', self.popup_menu_event )
+        self.list.connect( 'populate-popup', self.popup_menu_event )
+        self.list.connect( 'event', self.pass_event )
 
         self.timelines.add_listener( self )
         
@@ -40,6 +41,29 @@ class ViewPane:
         else:
             self.list.set_left_margin( 0 )
         self.list.set_editable( False )
+
+    def pass_event( self, widget, event ):
+        if not event.get_coords():
+            return False
+        
+        x, y = event.get_coords()
+
+        for child in self.list.get_children():
+            rect = child.get_allocation()
+            if ( x > rect.x and x < rect.x + rect.width and
+                 y > rect.y and y < rect.y + rect.height ):
+                value = child.event( event )
+                if value:
+                    return value
+
+    def mouse_down( self, widget, event ):
+        return self.pass_event( event )
+
+    def mouse_up( self, widget, event ):
+        return self.pass_event( event )
+
+    def motion_notify( self, widget, event ):
+        return self.pass_event( event )
 
     def popup_menu_event( self, widget, menu ):
         id = self.list.get_buffer().right_click_id

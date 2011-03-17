@@ -430,7 +430,8 @@ class TimelineSet:
 
             mark = buf.create_mark( None, point, True )
             img = res.get_image( filename, tweet )
-            images.append( (mark, img) )
+            img.mark = mark
+            images.append( img )
 
             buf.insert_tag_list( point, tag_list )
             count += 1        
