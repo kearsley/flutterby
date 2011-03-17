@@ -56,15 +56,6 @@ class ViewPane:
                 if value:
                     return value
 
-    def mouse_down( self, widget, event ):
-        return self.pass_event( event )
-
-    def mouse_up( self, widget, event ):
-        return self.pass_event( event )
-
-    def motion_notify( self, widget, event ):
-        return self.pass_event( event )
-
     def popup_menu_event( self, widget, menu ):
         id = self.list.get_buffer().right_click_id
         tag = self.list.get_buffer().right_click_tag
@@ -171,8 +162,11 @@ class EntryPane:
 
     def key_event( self, widget, event ):
         keyname = w.gdk.keyval_name( event.keyval )
-        if keyname == 'Return' and event.state == 0:
+        if ( keyname == 'Return' and
+             not event.state & w.gdk.CONTROL_MASK ):
             self.send_event( widget, True )
+
+            return True
 
     def typing_event( self, widget ):
         if time.time() - self.last_changed < TYPING_DELAY:
@@ -191,6 +185,7 @@ class EntryPane:
         self.last_changed = time.time()
         
     def send_event( self, widget, by_typing = False ):
+        print 'Sending...'
         self.start_spinner()
 
         account = self.parent.tab_items[ self.tab ][ 'account' ]
