@@ -1,3 +1,5 @@
+import time
+
 import pango, pygtk
 from gtk import *
 
@@ -191,12 +193,41 @@ class UserIcon( Image ):
         super( Image, self ).__init__()
 
         self.mark = None
-        
         self.simple_click = False
 
         self.connect( 'event', self.click_event )
+        self.connect( 'drag_data_get', self.drag_data_cb )
+        self.drag_source_set( gdk.BUTTON1_MASK,
+                              [ ('text/plain', 0, 80) ],
+                              gdk.ACTION_COPY )
 
-    def click_event( self, widget, event ):
+    def drag_data_cb( self, widget,
+                      context,
+                      selection,
+                      target_type,
+                      event_time ):
+        bounds = self.get_tweet_bounds( 'tweet' )
+        if not bounds:
+            return False
+        buf, start, end = bounds
+        
+        selection.set_text( buf.get_text( start, end ), -1 )
+
+    def get_tweet_bounds( self, tag_type ):
+        buf = self.mark.get_buffer()
+        table = buf.get_tag_table()
+        tweet = table.lookup( tag_type )
+        
+        start = buf.get_iter_at_mark( self.mark )
+        if not start.forward_to_tag_toggle( tweet ):
+            return False
+        end = start.copy()
+        if not end.forward_to_tag_toggle( tweet ):
+            return False
+
+        return buf, start, end
+        
+    def click_event( self, widget, event ): 
         ret = False
 
         if event.type == gdk._2BUTTON_PRESS:
@@ -204,16 +235,10 @@ class UserIcon( Image ):
             if event.button != 1:
                 return False
 
-            buf = self.mark.get_buffer()
-            table = buf.get_tag_table()
-            tweet = table.lookup( 'tweet' )
-            
-            start = buf.get_iter_at_mark( self.mark )
-            if not start.forward_to_tag_toggle( tweet ):
+            bounds = self.get_tweet_bounds( 'tweet' )
+            if not bounds:
                 return False
-            end = start.copy()
-            if not end.forward_to_tag_toggle( tweet ):
-                return False
+            buf, start, end = bounds
 
             buf.select_range( start, end )
 
@@ -224,7 +249,7 @@ class UserIcon( Image ):
             if event.button != 1:
                 return False
             self.simple_click = True
-            ret = True
+            ret = False
         if event.type == gdk.MOTION_NOTIFY:
             self.simple_click = False
             ret = False
@@ -236,23 +261,11 @@ class UserIcon( Image ):
                 point = self.mark.get_buffer().get_iter_at_mark( self.mark )
                 self.mark.get_buffer().place_cursor( point )
             self.simple_click = False
-            ret = True
+            ret = False
         elif event.type == gdk.BUTTON_RELEASE:
             ret = False
 
         return ret
-
-    def mouse_down( self, widget, event ):
-        self.simple_click = True
-        return True
-
-    def mouse_up( self, widget, event ):
-        if not self.simple_click:
-            return False
-        return True
-
-    def motion_notify( self, widget, event ):
-        self.simple_click = False
 
 class TweetTextBuffer( TextBuffer ):
     def __init__( self, table = None, parent = None ):
