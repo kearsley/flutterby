@@ -450,10 +450,15 @@ class TimelineSet:
             gobject.idle_add( self.buffer.insert_images, images )
 
 class RefreshTimelines( threading.Thread ):
-    def __init__( self, main_window, limit = 20, loop = True, permit_first = True ):
+    def __init__( self, main_window,
+                  limit = 20,
+                  loop = True,
+                  network = True,
+                  permit_first = True ):
         self.main_window = main_window
         self.limit = limit
         self.loop = loop
+        self.network = network
         self.first_run = permit_first
 
         super( RefreshTimelines, self ).__init__()
@@ -474,10 +479,11 @@ class RefreshTimelines( threading.Thread ):
         limit = self.limit
         if self.first_run:
             limit = None
-        for timelines, account in [ ( v[ 'timelines' ], v[ 'account' ] )
-                                    for v in self.main_window.tab_items.values() ]:
+        for ( timelines,
+              account ) in [ ( v[ 'timelines' ], v[ 'account' ] )
+                             for v in self.main_window.tab_items.values() ]:
             gobject.idle_add( self.start_spinner, account )
-            timelines.refresh( limit = limit )
+            timelines.refresh( limit = limit, network = self.network )
             gobject.idle_add( self.stop_spinner, account )
 
         self.first_run = False
