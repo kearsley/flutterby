@@ -169,24 +169,51 @@ class ClickableTextTag( TextTag ):
         self.double_click_action = double_click_action
         self.triple_click_action = triple_click_action
 
-        self.connect_after( 'event', self.click_event )
+        self.connect( 'event', self.click_event )
+        self.connect_after( 'event', self.multi_click_event )
 
+    def multi_click_event( self, texttag, widget, event, point ):
+        if self.triple_click_action and event.type == gdk._3BUTTON_PRESS:
+            dprint( DEBUG_EVENTS,
+                    'Triple-click on texttag %(tag)s',
+                    tag = texttag.get_property( 'name' ) )
+            return self.triple_click_action( texttag, widget, event, point )
+        if self.double_click_action and event.type == gdk._2BUTTON_PRESS:
+            dprint( DEBUG_EVENTS,
+                    'Double-click on texttag %(tag)s',
+                    tag = texttag.get_property( 'name' ) )
+            return self.double_click_action( texttag, widget, event, point )
+        
+        
     def click_event( self, texttag, widget, event, point ):
-        if event.type == gdk.BUTTON_PRESS:
-            self.simple_click = True
-        if event.type == gdk.MOTION_NOTIFY:
-            self.simple_click = False
-        if self.click_action and event.type == gdk.BUTTON_RELEASE:
-            if self.simple_click and event.button == 1:
-                return self.click_action( texttag, widget, event, point )
+        buf = None
+        if hasattr( widget, 'get_buffer' ):
+            buf = point.get_buffer()
+        if buf and hasattr( buf, 'icon_click' ) and buf.icon_click:
+            return False
+
         if ( self.right_click_action and
              event.type == gdk.BUTTON_PRESS and
              event.button == 3 ):
-                return self.right_click_action( texttag, widget, event, point )
-        if self.double_click_action and event.type == gdk._2BUTTON_PRESS:
-            return self.double_click_action( texttag, widget, event, point )
-        if self.triple_click_action and event.type == gdk._3BUTTON_PRESS:
-            return self.double_click_action( texttag, widget, event, point )
+            dprint( DEBUG_EVENTS,
+                    'Right click on texttag %(tag)s',
+                    tag = texttag.get_property( 'name' ) )
+            return self.right_click_action( texttag, widget, event, point )
+        if event.type == gdk.BUTTON_PRESS:
+            dprint( DEBUG_EVENTS,
+                    'Button down on texttag %(tag)s',
+                    tag = texttag.get_property( 'name' ) )
+            buf.simple_click = True
+        if event.type == gdk.MOTION_NOTIFY:
+            buf.simple_click = False
+        if self.click_action and event.type == gdk.BUTTON_RELEASE:
+            dprint( DEBUG_EVENTS,
+                    'Button up on texttag %(tag)s',
+                    tag = texttag.get_property( 'name' ) )
+            if buf.simple_click and event.button == 1:
+                dprint( DEBUG_EVENTS,
+                        'Simple click' )
+                return self.click_action( texttag, widget, event, point )
 
 class UserIcon( Image ):
     def __init__( self ):
@@ -196,30 +223,14 @@ class UserIcon( Image ):
         self.simple_click = False
 
         self.connect( 'event', self.click_event )
-        self.connect( 'drag_data_get', self.drag_data_cb )
-        self.drag_source_set( gdk.BUTTON1_MASK,
-                              [ ('text/plain', 0, 80) ],
-                              gdk.ACTION_COPY )
 
-    def drag_data_cb( self, widget,
-                      context,
-                      selection,
-                      target_type,
-                      event_time ):
-        bounds = self.get_tweet_bounds( 'tweet' )
-        if not bounds:
-            return False
-        buf, start, end = bounds
-        
-        selection.set_text( buf.get_text( start, end ), -1 )
-
-    def get_tweet_bounds( self, tag_type ):
+    def get_tweet_bounds( self, tag_type, move_start = True ):
         buf = self.mark.get_buffer()
         table = buf.get_tag_table()
         tweet = table.lookup( tag_type )
         
         start = buf.get_iter_at_mark( self.mark )
-        if not start.forward_to_tag_toggle( tweet ):
+        if move_start and not start.forward_to_tag_toggle( tweet ):
             return False
         end = start.copy()
         if not end.forward_to_tag_toggle( tweet ):
@@ -231,7 +242,9 @@ class UserIcon( Image ):
         ret = False
 
         if event.type == gdk._2BUTTON_PRESS:
-            print 'Double-click on:', self
+            dprint( DEBUG_EVENTS,
+                    'Double-click on: %(widget)s',
+                    widget = self )
             if event.button != 1:
                 return False
 
@@ -242,24 +255,30 @@ class UserIcon( Image ):
 
             buf.select_range( start, end )
 
+            self.mark.get_buffer().icon_click = False
             self.simple_click = False 
             return True
 
         if event.type == gdk.BUTTON_PRESS:
             if event.button != 1:
-                return False
+                return False 
+            self.mark.get_buffer().icon_click = True
             self.simple_click = True
             ret = False
         if event.type == gdk.MOTION_NOTIFY:
+            self.mark.get_buffer().icon_click = False
             self.simple_click = False
             ret = False
         if self.simple_click and event.type == gdk.BUTTON_RELEASE:
             if event.button != 1:
                 return False
-            print 'Click on:', self
+            dprint( DEBUG_EVENTS,
+                    'Click on: %(widget)s',
+                    widget = self )
             if self.mark and self.mark.get_buffer():
                 point = self.mark.get_buffer().get_iter_at_mark( self.mark )
                 self.mark.get_buffer().place_cursor( point )
+            self.mark.get_buffer().icon_click = False
             self.simple_click = False
             ret = False
         elif event.type == gdk.BUTTON_RELEASE:
@@ -353,7 +372,8 @@ class TweetTextBuffer( TextBuffer ):
                             properties = {}
                         if not actions:
                             actions = {}
-                        tmp_tag = ClickableTextTag( name = t, **actions )
+                        tmp_tag = ClickableTextTag( name = t,
+                                                    **actions )
                         for prop, value in properties.items():
                             tmp_tag.set_property( prop, value )
                         table.add( tmp_tag )
@@ -362,7 +382,8 @@ class TweetTextBuffer( TextBuffer ):
             self.insert_with_tags_by_name( point, text, *new_tag )
 
     def insert_images( self, images ):
-        print 'Inserting images'
+        dprint( DEBUG_MESSAGES,
+                'Inserting images' )
         
         if not self.parent:
             return
@@ -405,6 +426,21 @@ class TweetTextBuffer( TextBuffer ):
         self.right_click_id = long( custom_tag_payload( tag_name ) )
 
     def tweet_select( self, texttag, widget, event, point ):
+        start = point.copy()
+
+        flag = start.backward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        flag = point.forward_to_tag_toggle( texttag )
+        if not flag:
+            return False
+
+        self.select_range( start, point )
+
+        return True
+
+    def full_tweet_select( self, texttag, widget, event, point ):
         start = point.copy()
 
         flag = start.backward_to_tag_toggle( texttag )

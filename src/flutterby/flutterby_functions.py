@@ -2,15 +2,12 @@ import inspect, os, sys, time
 
 DEBUG_MESSAGES = 8
 DEBUG_EVENTS = 16
-DEBUG = reduce( lambda x, y: x | y,
-                [ DEBUG_MESSAGES,
-                  DEBUG_EVENTS,
-                  ],
-                0 )
+DEBUG = [ DEBUG_MESSAGES, ]
+DEBUG = reduce( lambda x, y: x | y, DEBUG, 0 )
 
 def dprint( level, message, **args ):
     if DEBUG & level:
-        print message.format( args )
+        print message % args
 
 SECOND = 1
 MINUTE = 60 * SECOND
