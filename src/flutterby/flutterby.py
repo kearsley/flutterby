@@ -24,7 +24,7 @@ class ViewPane:
 
         self.list = w.TextView( self.timelines.buffer )
         self.timelines.new_buffer()
-        self.setup_text( self.list )
+        self.setup_text()
         self.list.connect_after( 'populate-popup', self.popup_menu_event )
 
         self.timelines.add_listener( self )
@@ -33,7 +33,7 @@ class ViewPane:
         self.box.add_with_viewport( self.list )
         self.box.show()
 
-    def setup_text( self, widget ):
+    def setup_text( self, ):
         self.list.set_wrap_mode( w.WRAP_WORD )
         if db.get_param( 'show_icon' ):
             self.list.set_left_margin( 55 )
@@ -108,9 +108,6 @@ class ViewPane:
     def notify( self, message ):
         if message == 'timeline buffer updated':
             self.list.set_buffer( self.timelines.buffer )
-
-            # self.list.queue_draw()
-            # w.gdk.window_process_all_updates()
             
 class EntryPane:
     def __init__( self, parent, tab ):
@@ -322,8 +319,10 @@ class MainWindow:
         w.main_quit()
         return False
 
-    def refresh_event( self, widget ):
-        refresher = tweets.RefreshTimelines( self, loop = False )
+    def refresh_event( self, widget, network = True ):
+        refresher = tweets.RefreshTimelines( self,
+                                             loop = False,
+                                             network = network )
         refresher.start()
 
     def accounts_event( self, widget ):
@@ -601,9 +600,6 @@ class FollowingWindow:
         self.window.add( mainbox )
     
 class PreferencesWindow:
-    def change_refresh( self, widget ):
-        self.parent.refresh_event( widget )
-    
     def __init__( self, parent ):
         self.parent = parent
         
@@ -704,8 +700,7 @@ class PreferencesWindow:
         mainbox.pack_start( show_username, False, False, 0 )
 
         show_icon = w.PCheckButton( 'show_icon', 'Show user icons' )
-        show_icon.connect( 'toggled', self.parent.view().setup_text )
-        show_icon.connect( 'toggled', self.change_refresh ) 
+        show_icon.connect( 'toggled', self.change_refresh_show_icon ) 
         show_icon.show()
         mainbox.pack_start( show_icon, False, False, 0 )
 
@@ -730,6 +725,18 @@ class PreferencesWindow:
 
         mainbox.show()
         self.window.add( mainbox )
+
+    def change_refresh( self, widget ):
+        self.parent.refresh_event( widget, network = False )
+    
+    def change_refresh_show_icon( self, widget ):
+        for key, data in self.parent.tab_items.items():
+            for child in data[ 'view' ].list.get_children():
+                data[ 'view' ].list.remove( child )
+            data[ 'view' ].setup_text()
+        
+        self.change_refresh( widget )
+    
 
 def main():
     gobject.threads_init()
