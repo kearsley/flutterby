@@ -301,6 +301,7 @@ class TweetTextBuffer( TextBuffer ):
                   ('time',
                    { 'foreground' : '#666666', },
                    None),
+                  ('full_tweet', {}, None),
                   ('tweet', {},
                    { 'double_click_action' : self.tweet_select } )]:
             if not properties:

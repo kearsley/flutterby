@@ -226,6 +226,9 @@ def tweet_as_tag_list( tweet ):
             tmp2.append( (text, tag) )
         return tmp2
 
+    if hasattr( tweet, 'retweeted_status' ) and tweet.retweeted_status:
+        tmp[0] = (tweet.retweeted_status.text, tmp[0][1] )
+
     tmp = tag_blob( url_re, 'url' )
     tmp = tag_blob( ref_re, 'username' )
     tmp = tag_blob( hashtag_re, 'hashtag' )
@@ -261,6 +264,7 @@ def tweet_as_tag_list( tweet ):
                                 td[ 'username' ].lower() ) )
         tag.append( custom_tag( 'id',
                                 str( td[ 'id' ] ) ) )
+        tag.append( 'full_tweet' )
 
         ret[ index ] = (text, tag)
     
