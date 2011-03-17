@@ -176,7 +176,11 @@ def tweet_as_dict( tweet ):
     response_to = None
     currently_from = None
     match = retweet_re.search( tweet.text )
-    if match:
+    if hasattr( tweet, 'retweeted_status' ) and tweet.retweeted_status:
+        originally_from = '@' + tweet.retweeted_status.author.screen_name
+        currently_from = chosen_name
+        text = tweet.retweeted_status.text
+    elif match:
         originally_from = match.group( 'username' )
         currently_from = chosen_name
         text = tweet.text[ match.end(): ]
@@ -189,9 +193,6 @@ def tweet_as_dict( tweet ):
         else:
             currently_from = chosen_name
             text = tweet.text
-
-    if hasattr( tweet, 'retweeted_status' ) and tweet.retweeted_status:
-        text = tweet.retweeted_status.text
 
     hashtags = None
     match = ending_hashtag_re.search( text )
